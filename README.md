@@ -10,7 +10,13 @@
 - ✅ S4 ダンサー一覧(バレエ団グルーピング+横断検索+ダンサー/団体フォロー+友だち追加バナー)
 - ✅ S9 LINEログイン(OAuth2 + bot_prompt=aggressive。認証ガード: 操作をstateに保持し自動再実行)
 - ✅ S10 計測リダイレクト(/go/[id]?src=web|line|share)
-- ⬜ 観劇ログ(S6/S7)・通知バッチ・管理画面(次ステップ)
+- ✅ 観劇ログ(S6 マイページ / S7 記録・編集)
+- ✅ 管理画面(A2-0〜A2-4: 一覧・公演・公演回・キャスト・CSV取込)
+- ✅ 通知バッチ(/api/cron/notify: キュー消化→LINE Pushダイジェスト。Vercel Cron JST 9:00/18:00)
+- ✅ 友だち状態webhook(/api/line/webhook: follow/unfollowで is_line_friend を自動更新)
+
+webhook設定: LINE Developers → Messaging APIチャネル → Messaging API設定 →
+Webhook URL に `{本番URL}/api/line/webhook` を設定し「Webhookの利用」をON。
 
 認証の設計: LINEログイン成功時に auth.users を admin API で作成し(email は `{lineUserId}@line.local` の合成値)、
 セッションは自前の署名Cookie(SESSION_SECRET)。書き込みは全てサーバー(service role)経由で、RLSは直接アクセスへの防御層。
