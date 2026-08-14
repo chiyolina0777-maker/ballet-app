@@ -16,7 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/">ホーム</Link>
             <Link href="/performances">公演</Link>
             <Link href="/dancers">ダンサー</Link>
-            <Link href="/">マイページ</Link>
+            <Link href="/me">マイページ</Link>
           </nav>
         </header>
         <main>{children}</main>

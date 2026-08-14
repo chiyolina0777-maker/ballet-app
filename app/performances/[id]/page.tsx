@@ -92,6 +92,11 @@ export default async function PerformanceDetail({ params }: { params: Promise<{ 
                 ))}
               </div>
             )}
+            {sh.starts_at < now && (
+              <div style={{ marginTop: 6 }}>
+                <a href={`/me/logs/${sh.id}`} style={{ fontSize: 12 }}>観劇を記録</a>
+              </div>
+            )}
           </div>
         );
       })}
