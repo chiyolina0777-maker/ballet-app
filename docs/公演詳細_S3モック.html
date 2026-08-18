@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S3 公演詳細(動作モック / フェーズ1)</title>
+<style>
+  :root {
+    --berry: #6D2E46; --rose: #A26769; --cream: #ECE2D0;
+    --tint: #F7F1EA; --rose-tint: #F3E7E7; --ink: #2B2B2B; --muted: #6B6B6B;
+    --line: #DDD5CB; --warn-bg: #FAF3E3; --warn-ink: #7A5A18; --ok: #2E6E4E; --err: #B03030;
+    --line-green: #06C755;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: "游ゴシック", "Yu Gothic", sans-serif; background: #E9E2D8; color: var(--ink); font-size: 14px; line-height: 1.7; }
+  .phone { max-width: 420px; margin: 0 auto; min-height: 100vh; background: var(--tint); }
+
+  .demo { background: var(--ink); color: #ccc; font-size: 11px; padding: 6px 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .demo a { color: #F3E7E7; cursor: pointer; text-decoration: underline; }
+  .demo a.on { color: #8BE28B; }
+  .demo .st { margin-left: auto; color: #999; }
+
+  header { background: #fff; border-bottom: 1px solid var(--line); padding: 12px 16px 0; }
+  header h1 { font-size: 15px; color: var(--berry); font-weight: 600; }
+  .gnav { display: flex; gap: 4px; margin-top: 8px; }
+  .gnav span { flex: 1; text-align: center; font-size: 12px; padding: 8px 0; color: var(--muted); border-bottom: 2px solid transparent; }
+  .gnav span.active { color: var(--berry); font-weight: 600; border-bottom-color: var(--berry); }
+
+  .hero { background: #fff; padding: 16px; border-bottom: 1px solid var(--line); }
+  .hero .crumb { font-size: 11px; color: var(--muted); }
+  .hero h2 { font-size: 18px; color: var(--ink); font-weight: 700; line-height: 1.4; margin: 2px 0 6px; }
+  .meta { font-size: 12px; color: var(--muted); }
+  .meta b { color: var(--ink); font-weight: 600; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 10px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
+  .badge.ok { background: #E5F0EA; color: var(--ok); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn-ink); }
+  .badge.err { background: #F6E3E3; color: var(--err); }
+  .badge.oshi { background: var(--rose-tint); color: var(--berry); font-weight: 700; margin-left: 0; }
+
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; margin: 14px 16px; overflow: hidden; }
+  .card h3 { font-size: 12px; color: var(--berry); font-weight: 600; letter-spacing: 1px; padding: 10px 14px 0; }
+  .sale-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .sale-row:last-of-type { border-bottom: none; }
+  .sale-row .lbl { font-weight: 600; }
+  .sale-row .when { color: var(--muted); font-size: 12px; }
+  .buy { display: block; margin: 10px 14px 14px; text-align: center; background: var(--berry); color: #fff; border-radius: 8px; padding: 12px; font-weight: 700; font-size: 14px; cursor: pointer; }
+
+  .show { border-bottom: 1px solid var(--line); padding: 12px 14px; }
+  .show:last-child { border-bottom: none; }
+  .show .head { display: flex; align-items: center; gap: 8px; }
+  .show .dt { font-size: 14px; font-weight: 700; }
+  .show .cast { margin-top: 6px; font-size: 13px; }
+  .show .cast .role { color: var(--muted); }
+  .show .cast a { color: var(--berry); text-decoration: none; border-bottom: 1px dashed var(--rose); cursor: pointer; }
+  .show .cast .chg { font-size: 11px; padding: 0 6px; border-radius: 999px; margin-left: 4px; }
+  .show .cast .chg.warn { background: var(--warn-bg); color: var(--warn-ink); }
+  .show .cast .chg.err { background: #F6E3E3; color: var(--err); }
+  .show .tba { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .show .logbtn { margin-top: 8px; font-size: 12px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--rose); background: #fff; color: var(--berry); cursor: pointer; font: inherit; }
+
+  .src { padding: 12px 14px; font-size: 11px; color: var(--muted); }
+  .src a { color: var(--berry); }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 20px; border-radius: 999px; font-size: 13px; opacity: 0; transition: opacity .25s; z-index: 60; pointer-events: none; max-width: 90%; text-align: center; }
+  .toast.show { opacity: 1; }
+  .specnote { margin: 20px 16px 32px; font-size: 11px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 10px; }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="demo">
+    デモ:
+    <a id="d_login">ログイン</a>
+    <a id="d_oshi">米沢唯をフォロー</a>
+    <a id="d_today">今日を10/13にする</a>
+    <span class="st" id="d_state"></span>
+  </div>
+
+  <header>
+    <h1>バレエ観劇アプリ(仮)</h1>
+    <nav class="gnav"><span>ホーム</span><span class="active">公演</span><span>ダンサー</span><span>マイページ</span></nav>
+  </header>
+
+  <div class="hero">
+    <div class="crumb">公演 / 新国立劇場バレエ団</div>
+    <h2>『ジゼル』全2幕<span class="badge ok">発売中</span></h2>
+    <div class="meta">
+      <b>新国立劇場バレエ団</b> / 演目: ジゼル<br>
+      新国立劇場 オペラパレス / 2026/10/11(日)〜10/14(水)
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>チケット販売</h3>
+    <div id="sales"></div>
+    <span class="buy" id="buy">チケットを購入</span>
+  </div>
+
+  <div class="card">
+    <h3>日別キャスト</h3>
+    <div id="shows"></div>
+    <div class="src">
+      出典: <a href="#" onclick="return false">新国立劇場 公式サイト</a> ―
+      公式発表に基づく。変更の可能性あり。
+      <a href="#" onclick="return false">誤りを報告</a>
+    </div>
+  </div>
+
+  <div class="specnote">
+    モック仕様: 発売情報は ticket_sales を日時昇順に列挙(開始済み=「発売中」、未来=「発売開始 M/D HH:mm」)。
+    日別キャスト表は shows を日時昇順に列挙し、フォロー中ダンサーが出演する回に「推し出演」バッジ(status=cancelledは判定除外)。
+    キャスト未発表の回は「キャスト未発表」。「観劇を記録」は過去回のみ表示(未ログインはS9経由でS7へ)。
+    ダンサー名タップはS4の該当ダンサー位置へ。購入は /go/[id]?src=web で click_events 記録後302。
+    演目は performance_works を上演順に「/」区切りで列挙(本公演は単演目。トリプル・ビル等は「火の鳥 / ペトルーシュカ / ボレロ」のように表示)。
+    SEO: title「『ジゼル』全2幕 キャスト・日程 | サービス名」+構造化データ(Event)。SSR+CDNキャッシュ、キャスト更新時にrevalidate。
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  const $=(s,r=document)=>r.querySelector(s);
+  const el=(t,c,h)=>{const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e;};
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  // ---------- データ ----------
+  const sales=[
+    {label:'会員先行', at:new Date(2026,6,10,12,0)},
+    {label:'一般発売', at:new Date(2026,6,15,10,0)},
+    {label:'追加販売', at:new Date(2026,8,1,10,0)},
+  ];
+  const WD=['日','月','火','水','木','金','土'];
+  const shows=[
+    {id:'s1', at:new Date(2026,9,11,14,0), hol:false, casts:[
+      {role:'ジゼル', dancer:'米沢唯', status:'scheduled'},
+      {role:'アルブレヒト', dancer:'井澤駿', status:'scheduled'},
+      {role:'ヒラリオン', dancer:'渡辺与布', status:'scheduled'},
+    ]},
+    {id:'s2', at:new Date(2026,9,12,19,0), hol:true, casts:[
+      {role:'ジゼル', dancer:'木村優里', status:'scheduled'},
+      {role:'アルブレヒト', dancer:'速水渉悟', status:'scheduled'},
+      {role:'ペザント', dancer:'柴山紗帆', status:'changed'},
+    ]},
+    {id:'s3', at:new Date(2026,9,13,19,0), hol:false, casts:[]},
+    {id:'s4', at:new Date(2026,9,14,19,0), hol:false, casts:[]},
+  ];
+
+  // ---------- 状態(デモ) ----------
+  const state={ loggedIn:false, oshi:false, todayShift:false };
+  const REAL_TODAY=new Date(2026,6,16,12,0);
+  const SHIFT_TODAY=new Date(2026,9,13,12,0);
+  const today=()=> state.todayShift? SHIFT_TODAY : REAL_TODAY;
+  const followSet=()=> (state.loggedIn && state.oshi)? new Set(['米沢唯']) : new Set();
+
+  const toastEl=$('#toast'); let tT;
+  function toast(m){ toastEl.textContent=m; toastEl.classList.add('show'); clearTimeout(tT); tT=setTimeout(()=>toastEl.classList.remove('show'),2600); }
+
+  // ---------- 発売情報 ----------
+  function fmtDT(d){ return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+  function renderSales(){
+    const box=$('#sales'); box.innerHTML='';
+    sales.slice().sort((a,b)=>a.at-b.at).forEach(s=>{
+      const started=s.at<=today();
+      const row=el('div','sale-row');
+      row.innerHTML=`<span class="lbl">${esc(s.label)}</span>`+
+        (started? `<span><span class="when">${fmtDT(s.at)}〜</span> <span class="badge ok">発売中</span></span>`
+                : `<span><span class="when">発売開始 ${fmtDT(s.at)}</span> <span class="badge warn">発売前</span></span>`);
+      box.appendChild(row);
+    });
+  }
+  $('#buy').addEventListener('click',()=>{
+    toast('S10: /go/[performance_id]?src=web → click_events 記録 → チケットサイトへ302(モック)');
+  });
+
+  // ---------- 日別キャスト ----------
+  function renderShows(){
+    const box=$('#shows'); box.innerHTML='';
+    const fs=followSet();
+    shows.forEach(sh=>{
+      const d=sh.at;
+      const past = d < today();
+      const row=el('div','show');
+      const head=el('div','head');
+      head.appendChild(el('span','dt',`${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]}${sh.hol?'・祝':''}) ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`));
+      const oshiHit = sh.casts.some(c=>fs.has(c.dancer) && c.status!=='cancelled');
+      if(oshiHit) head.appendChild(el('span','badge oshi','推し出演'));
+      if(past) head.appendChild(el('span','badge warn','終演'));
+      row.appendChild(head);
+      if(sh.casts.length){
+        const cast=el('div','cast');
+        cast.innerHTML=sh.casts.map(c=>{
+          const chg = c.status==='changed'? ' <span class="chg warn">変更</span>' : c.status==='cancelled'? ' <span class="chg err">降板</span>' : '';
+          return `<span class="role">${esc(c.role)}:</span> <a data-d="${esc(c.dancer)}">${esc(c.dancer)}</a>${chg}`;
+        }).join('　');
+        row.appendChild(cast);
+        cast.querySelectorAll('a[data-d]').forEach(a=>{
+          a.onclick=()=>toast(`S4へ遷移: /dancers?focus=${a.dataset.d}(該当ダンサーをハイライト・モック)`);
+        });
+      }else{
+        row.appendChild(el('div','tba','キャスト未発表'));
+      }
+      if(past){
+        const b=el('button','logbtn','観劇を記録');
+        b.onclick=()=>{
+          if(state.loggedIn) toast('S7へ遷移: /me/logs/new?show='+sh.id+'(モック)');
+          else toast('S9(LINEログイン)を経由してS7へ。redirect_to で操作を保持(モック)');
+        };
+        row.appendChild(b);
+      }
+      box.appendChild(row);
+    });
+  }
+
+  // ---------- デモ操作 ----------
+  function sync(){
+    $('#d_login').textContent=state.loggedIn?'ログイン済み':'ログイン';
+    $('#d_login').classList.toggle('on',state.loggedIn);
+    $('#d_oshi').textContent=state.oshi?'米沢唯フォロー中':'米沢唯をフォロー';
+    $('#d_oshi').classList.toggle('on',state.oshi);
+    $('#d_today').textContent=state.todayShift?'今日=10/13(戻す)':'今日を10/13にする';
+    $('#d_today').classList.toggle('on',state.todayShift);
+    $('#d_state').textContent='今日: '+fmtDT(today());
+    renderSales(); renderShows();
+  }
+  $('#d_login').onclick=()=>{ state.loggedIn=!state.loggedIn; if(!state.loggedIn)state.oshi=false; sync(); };
+  $('#d_oshi').onclick=()=>{ if(!state.loggedIn){ toast('フォローにはログインが必要(S4参照)。デモ: 先に「ログイン」を押してください'); return; } state.oshi=!state.oshi; sync(); };
+  $('#d_today').onclick=()=>{ state.todayShift=!state.todayShift; sync(); };
+
+  sync();
+})();
+</script>
+</body>
+</html>

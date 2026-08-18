@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理画面 入力フォーム(動作プロトタイプ / フェーズ1)</title>
+<style>
+  :root {
+    --berry: #6D2E46; --rose: #A26769; --cream: #ECE2D0;
+    --tint: #F7F1EA; --rose-tint: #F3E7E7; --ink: #2B2B2B; --muted: #6B6B6B;
+    --line: #DDD5CB; --warn-bg: #FAF3E3; --warn-ink: #7A5A18;
+    --ok: #2E6E4E; --err: #B03030;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: "游ゴシック", "Yu Gothic", sans-serif; background: var(--tint); color: var(--ink); font-size: 14px; line-height: 1.7; padding: 32px 16px 64px; }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  .doc-head { margin-bottom: 28px; }
+  .doc-head h1 { font-size: 20px; color: var(--berry); font-weight: 600; }
+  .doc-head p { color: var(--muted); font-size: 13px; }
+  .screen { background: #fff; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 36px; overflow: hidden; }
+  .screen.dim { opacity: .5; }
+  .screen-label { background: var(--berry); color: var(--cream); font-size: 12px; padding: 6px 16px; letter-spacing: 1px; display:flex; justify-content:space-between; align-items:center;}
+  .screen-label .state { font-size:11px; opacity:.85; letter-spacing:0;}
+  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+  .crumb { font-size: 12px; color: var(--muted); }
+  .topbar h2 { font-size: 16px; color: var(--ink); font-weight: 600; }
+  .body { padding: 20px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 14px 0 4px; }
+  label .req { color: #B03030; font-size: 11px; margin-left: 6px; }
+  input[type="text"], input[type="datetime-local"], input[type="date"], select, textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px;
+    font: inherit; font-size: 14px; background: #fff;
+  }
+  textarea { resize: vertical; min-height: 90px; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--rose); outline-offset: 0; }
+  input.invalid, select.invalid { border-color: var(--err); outline-color: var(--err); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .wtag { display: inline-block; font-size: 12px; background: var(--rose-tint); color: var(--berry); border: 1px solid var(--rose); border-radius: 999px; padding: 2px 10px; margin: 0 6px 6px 0; }
+  .wtag .x { cursor: pointer; margin-left: 4px; color: var(--rose); }
+  .sale-row { display: grid; grid-template-columns: 1fr 1fr 48px; gap: 10px; align-items: center; margin-top: 8px; }
+  @media (max-width: 640px) { .sale-row { grid-template-columns: 1fr 1fr 40px; } }
+  .wd-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; margin-top: 8px; }
+  .wd-cell { text-align: center; }
+  .wd-cell .wd-name { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .wd-cell.holiday .wd-name { color: var(--berry); font-weight: 600; }
+  .wd-cell input { padding: 7px 6px; text-align: center; font-size: 13px; }
+  @media (max-width: 640px) { .wd-grid { grid-template-columns: repeat(4, 1fr); } }
+  .inline-add { font-size: 12px; color: var(--berry); margin-top: 4px; display: inline-block; cursor:pointer; text-decoration:none;}
+  .inline-add:hover { text-decoration: underline; }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .field-err { font-size: 11px; color: var(--err); margin-top: 4px; display:none; }
+  .btn { display: inline-block; padding: 8px 18px; border-radius: 6px; border: 1px solid var(--line); background: #fff; font: inherit; font-size: 13px; cursor: pointer; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+  .btn.primary { background: var(--berry); color: #fff; border-color: var(--berry); }
+  .btn.ghost { border: none; color: var(--berry); background: none; padding: 8px 6px; }
+  .actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 20px; border-top: 1px solid var(--line); margin-top: 24px; align-items:center; }
+  .actions .msg { margin-right:auto; font-size:12px; color: var(--ok); }
+  .pill { display: inline-block; font-size: 12px; padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); margin: 0 6px 6px 0; background: #fff; cursor:pointer; }
+  .pill.active { background: var(--rose-tint); border-color: var(--rose); color: var(--berry); font-weight: 600; }
+  .pill .ck { color: var(--ok); font-weight:700; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th { text-align: left; font-size: 11px; color: var(--muted); font-weight: 400; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 6px 8px; vertical-align: top; }
+  td input, td select { font-size: 13px; padding: 7px 9px; }
+  .del { color: var(--muted); font-size: 12px; text-align: center; padding-top: 14px; cursor:pointer; }
+  .del:hover { color: var(--err); }
+  .dc-wrap { position: relative; }
+  .dropdown { position:absolute; left:0; right:0; z-index:5; border: 1px solid var(--line); border-radius: 8px; margin-top: 4px; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.06); font-size: 13px; overflow:hidden;}
+  .dropdown div { padding: 8px 10px; cursor:pointer; }
+  .dropdown div:hover { background: var(--tint); }
+  .dropdown .hit small { color: var(--muted); }
+  .dropdown .new { color: var(--berry); border-top: 1px solid var(--line); }
+  .notice { background: var(--warn-bg); border: 1px solid #E6D19A; color: var(--warn-ink); border-radius: 8px; padding: 12px 14px; font-size: 13px; margin-top: 20px; }
+  .notice strong { font-size: 15px; }
+  .gen-list { border: 1px solid var(--line); border-radius: 8px; margin-top: 12px; }
+  .gen-list .empty { padding: 16px; color: var(--muted); font-size: 13px; text-align:center; }
+  .gen-list .r { display: flex; justify-content: space-between; padding: 8px 12px; font-size: 13px; border-bottom: 1px solid var(--line); }
+  .gen-list .r:last-child { border-bottom: none; }
+  .gen-list span.x { color: var(--muted); font-size: 12px; cursor:pointer; }
+  .gen-list span.x:hover { color: var(--err); }
+  .modal-note { background: var(--rose-tint); border-radius: 8px; padding: 12px 14px; font-size: 12px; color: var(--berry); margin-top: 16px; }
+  .spec { padding: 14px 20px; background: var(--tint); border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+  @media (max-width: 640px) { .row2, .row3 { grid-template-columns: 1fr; } }
+
+  /* modal */
+  .overlay { position: fixed; inset: 0; background: rgba(43,43,43,.45); display:flex; align-items:center; justify-content:center; padding:16px; z-index:50; }
+  .overlay[hidden] { display:none; }
+  .modal { background:#fff; border-radius:12px; max-width:460px; width:100%; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,.25); }
+  .modal-head { background: var(--berry); color:#fff; padding:12px 18px; font-size:14px; font-weight:600; }
+  .modal-body { padding:18px; }
+  .modal-actions { display:flex; gap:10px; justify-content:flex-end; padding:14px 18px; border-top:1px solid var(--line); }
+  /* LINE preview card */
+  .line-card { border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-top:10px; }
+  .line-card .banner { background: linear-gradient(135deg,var(--berry),var(--rose)); color:#fff; padding:14px 16px; }
+  .line-card .banner h4 { font-size:14px; }
+  .line-card .banner small { opacity:.85; }
+  .line-card .cbody { padding:12px 16px; font-size:13px; }
+  .line-card .cbody .role { color: var(--muted); }
+  .line-card .cta { display:block; text-align:center; background:#06C755; color:#fff; padding:10px; font-size:13px; font-weight:600; text-decoration:none; }
+  .toast { position: fixed; bottom: 24px; left:50%; transform: translateX(-50%); background: var(--ink); color:#fff; padding:10px 20px; border-radius:999px; font-size:13px; opacity:0; transition:opacity .25s; z-index:60; pointer-events:none; }
+  .toast.show { opacity: 1; }
+  .badge { display:inline-block; font-size:11px; padding:1px 8px; border-radius:999px; margin-left:8px; }
+  .badge.ok { background:#E5F0EA; color:var(--ok); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn-ink); }
+  .badge.err { background:#F6E3E3; color:var(--err); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="doc-head">
+  <h1>管理画面 入力フォーム(動作プロトタイプ)</h1>
+  <p>フェーズ1 / A2 公演→公演回→キャスト入力 / データはブラウザ内メモリのみ(保存されません)。上から順に進めてください。</p>
+</div>
+
+<!-- ========== A2-0 公演一覧 ========== -->
+<section class="screen" id="s0">
+  <div class="screen-label">A2-0 公演一覧</div>
+  <div class="topbar"><div><div class="crumb">管理 / 公演</div><h2>公演一覧</h2></div>
+    <button class="btn primary" id="pl_new">+ 新規公演を作成</button></div>
+  <div class="body">
+    <div class="row2" style="margin-bottom:6px">
+      <div><input type="text" id="pl_q" placeholder="公演名・バレエ団・期間で検索(例: ジゼル / 東京 / 12/19)"></div>
+      <div><select id="pl_status">
+        <option value="">すべてのステータス</option>
+        <option value="announced">発表済み</option>
+        <option value="on_sale">発売中</option>
+        <option value="finished">終演</option>
+        <option value="cancelled">中止</option>
+      </select></div>
+    </div>
+    <table><thead><tr>
+      <th>公演名</th><th style="width:130px">バレエ団</th><th style="width:110px">期間</th>
+      <th style="width:76px">ステータス</th><th style="width:56px">公演回</th><th style="width:52px">販売</th>
+      <th style="width:90px">キャスト</th><th style="width:110px"></th></tr></thead>
+      <tbody id="pl_rows"></tbody></table>
+  </div>
+  <div class="spec">仕様メモ: /admin/performances のトップ。登録済み公演の状態(公演回数・販売設定・キャスト公開状況)を一望し、「編集」はA2-1へ読み込んで上書き保存、「キャスト」はA2-3へ。検索は公演名・バレエ団・期間(M/D表記)を1ボックスで横断、ステータスはセレクトで絞り込み。両条件はAND。</div>
+</section>
+
+<!-- ========== A2-1 公演作成 ========== -->
+<section class="screen" id="s1">
+  <div class="screen-label">A2-1 公演作成 <span class="state" id="s1state"></span></div>
+  <div class="topbar"><div><div class="crumb">管理 / 公演 / 新規作成</div><h2>公演を作成</h2></div></div>
+  <div class="body">
+    <label>公演名<span class="req">必須</span></label>
+    <input type="text" id="p_title" value="『ジゼル』全2幕">
+    <div class="field-err" id="err_title">公演名は必須です</div>
+    <div class="row3">
+      <div>
+        <label>バレエ団・主催<span class="req">必須</span></label>
+        <select id="p_company"></select>
+        <a class="inline-add" data-add="companies" data-target="p_company">+ 新しい団体を追加</a>
+        <div class="field-err" id="err_company">選択してください</div>
+      </div>
+      <div>
+        <label>演目(複数可・上演順)</label>
+        <div id="p_works_tags"></div>
+        <select id="p_work_add"></select>
+        <a class="inline-add" data-add="works" data-target="p_work_add">+ 新しい演目を追加</a>
+      </div>
+      <div>
+        <label>劇場</label>
+        <select id="p_venue"></select>
+        <a class="inline-add" data-add="venues" data-target="p_venue">+ 新しい劇場を追加</a>
+      </div>
+    </div>
+    <div class="row2">
+      <div><label>開催期間(開始)</label><input type="date" id="p_start" value="2026-10-11"></div>
+      <div><label>開催期間(終了)</label><input type="date" id="p_end" value="2026-10-14"></div>
+    </div>
+    <label>チケット販売日時(発売通知のトリガー・複数可)</label>
+    <div id="sale_list"></div>
+    <button class="btn ghost" id="sale_add" type="button">+ 販売日時を追加</button>
+    <div class="hint">会員先行・一般発売など、販売窓口ごとに登録できます。各日時の前日9:00に、出演ダンサーのフォロワーへ発売通知が送られます。</div>
+    <div class="row2" style="margin-top:14px">
+      <div><label>ステータス</label><select id="p_status">
+        <option value="announced">発表済み</option><option value="on_sale">発売中</option>
+        <option value="finished">終演</option><option value="cancelled">中止</option></select></div>
+      <div></div>
+    </div>
+    <label>チケットURL(/go/ リダイレクトの飛び先)</label>
+    <input type="text" id="p_ticket" value="https://t.pia.jp/...">
+    <div class="hint">未設定の場合、公演ページの購入ボタンは非表示になります</div>
+    <label>出典URL<span class="req">必須</span></label>
+    <input type="text" id="p_source" value="https://www.nntt.jac.go.jp/ballet/giselle/">
+    <div class="field-err" id="err_source">出典URLは必須です</div>
+    <div class="actions">
+      <button class="btn">キャンセル</button>
+      <button class="btn primary" id="p_save">保存して公演回の登録へ</button>
+    </div>
+  </div>
+  <div class="spec">仕様メモ: マスタ(団体・演目・劇場)の新規追加はモーダルで同一画面内から。演目は複数選択(performance_works。タグの並び=上演順、×で除外。トリプル・ビルやガラに対応)。保存後は自動でA2-2へ。公演の作成・編集では通知は一切発生しない。</div>
+</section>
+
+<!-- ========== A2-2 公演回の一括生成 ========== -->
+<section class="screen dim" id="s2">
+  <div class="screen-label">A2-2 公演回の一括生成 <span class="state" id="s2state"></span></div>
+  <div class="topbar"><div><div class="crumb">管理 / 公演 / <span id="s2crumb">—</span></div><h2>公演回を登録</h2></div></div>
+  <div class="body">
+    <div class="row2">
+      <div><label>期間</label><input type="text" id="g_period" value="10/11 〜 10/14"></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn" id="g_gen" style="width:100%">この条件で一括生成</button></div>
+    </div>
+    <label>時刻パターン(曜日別・空欄はその曜日は公演なし)</label>
+    <div class="wd-grid" id="g_wd"></div>
+    <div class="hint">期間は「M/D 〜 M/D」。曜日ごとに開演時刻(HH:MM)を入力。「祝」に時刻を入れると、祝日はその曜日設定より優先されます(祝日は内蔵カレンダーで判定)。年は開催開始年を使用。</div>
+    <div class="gen-list" id="g_list"><div class="empty">「一括生成」で公演回の下書きを作成します</div></div>
+    <div class="actions">
+      <button class="btn">あとで</button>
+      <button class="btn primary" id="g_save" disabled>公演回を保存してキャスト入力へ</button>
+    </div>
+  </div>
+  <div class="spec">仕様メモ: パターン生成は下書き。リスト上で個別削除してから保存。保存済みの回の削除は、観劇ログが紐づく場合は不可(アーカイブのみ)。ここでも通知は発生しない。</div>
+</section>
+
+<!-- ========== A2-3 キャスト入力 ========== -->
+<section class="screen dim" id="s3">
+  <div class="screen-label">A2-3 キャスト入力 ― 毎日の主戦場 <span class="state" id="s3state"></span></div>
+  <div class="topbar"><div><div class="crumb">管理 / 公演 / <span id="s3crumb">—</span></div><h2>キャスト入力</h2></div>
+    <button class="btn" id="c_copy">前の回からコピー</button></div>
+  <div class="body">
+    <div id="c_tabs"></div>
+    <table><thead><tr><th style="width:150px">役名</th><th>ダンサー(検索)</th><th style="width:120px">状態</th><th style="width:48px"></th></tr></thead>
+      <tbody id="c_rows"></tbody></table>
+    <button class="btn ghost" id="c_addrole">+ 役を追加</button>
+    <label>出典URL<span class="req">必須</span></label>
+    <input type="text" id="c_source" value="https://www.nntt.jac.go.jp/ballet/giselle/cast.html">
+    <div class="hint">キャスト情報は必ず公式発表に基づいて入力する。出典が空の状態では保存できない</div>
+    <div class="field-err" id="err_csource">出典URLは必須です</div>
+    <div class="notice" id="c_notice">🔔 —</div>
+    <div class="actions">
+      <span class="msg" id="c_msg"></span>
+      <button class="btn" id="c_draft">下書き保存(通知しない)</button>
+      <button class="btn primary" id="c_notify">保存して通知</button>
+    </div>
+    <div class="modal-note">「保存して通知」は二段確認: 実際にLINEへ送られるメッセージのプレビューと対象人数を表示。押下は即時送信ではなく通知キューへの登録で、送信は9:00/18:00のバッチ(§6)。登録後の取り消しはできないため確認は省略不可。下書き(is_published=false)は公演ページに表示されない。</div>
+  </div>
+  <div class="spec">仕様メモ: 「前の回からコピー」は直前の回のキャスト一式を複製。役名は演目ごとの入力履歴からサジェスト。ダンサー新規追加は検索ドロップダウン内から離脱なしで実行。「変更/降板」保存も同じ通知プレビュー+二段確認を通る。</div>
+</section>
+
+<!-- ========== A2-4 CSVインポート ========== -->
+<section class="screen" id="s4">
+  <div class="screen-label">A2-4 CSVインポート</div>
+  <div class="topbar"><div><div class="crumb">管理 / インポート</div><h2>CSVから取り込む</h2></div>
+    <div><a class="inline-add" id="csv_tpl">キャストCSVテンプレートを貼り付け</a></div></div>
+  <div class="body">
+    <label>CSV(列: 日付, 開演時刻, 役名, ダンサー名 ― 1行目ヘッダ可)</label>
+    <textarea id="csv_text">日付,開演時刻,役名,ダンサー名
+10/12,19:00,ジゼル,米沢唯
+10/12,19:00,アルブレヒト,井沢駿
+10/15,19:00,ヒラリオン,木下嘉人</textarea>
+    <div class="hint">公演回は現在の公演(A2で保存したもの)内の日時完全一致でマッチング。ダンサーは完全一致→かな→編集距離1で名寄せ候補を提示し、確定は人間が行う。</div>
+    <div class="actions" style="border:none; margin:0; padding-top:12px; justify-content:flex-start;">
+      <button class="btn" id="csv_check">検証プレビュー</button>
+    </div>
+    <div id="csv_out"></div>
+  </div>
+  <div class="spec">仕様メモ: 文字コードはUTF-8/Shift_JIS自動判定(本プロトタイプはテキスト貼付)。取込は全て「下書き」で通知なし。通知と公開はA2-3で回ごとに確認してから実行。取込単位でロールバック可能。</div>
+</section>
+
+</div>
+
+<!-- 汎用モーダル -->
+<div class="overlay" id="overlay" hidden>
+  <div class="modal" id="modal"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = (s,r=document)=>r.querySelector(s);
+  const el = (t,c,h)=>{const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e;};
+  const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  // ---------- モックDB ----------
+  let uid = 1; const nid = ()=> 'id'+(uid++);
+  const db = {
+    companies: [{id:nid(),name:'新国立劇場バレエ団'},{id:nid(),name:'東京バレエ団'}],
+    works: [{id:nid(),title:'ジゼル'},{id:nid(),title:'白鳥の湖'}],
+    venues: [{id:nid(),name:'新国立劇場 オペラパレス'},{id:nid(),name:'東京文化会館 大ホール'}],
+    dancers: [
+      {id:nid(),name:'米沢唯',kana:'よねざわゆい',company:'新国立劇場バレエ団',followers:298},
+      {id:nid(),name:'井澤駿',kana:'いざわしゅん',company:'新国立劇場バレエ団',followers:71},
+      {id:nid(),name:'木村優里',kana:'きむらゆうり',company:'新国立劇場バレエ団',followers:120},
+      {id:nid(),name:'速水渉悟',kana:'はやみしょうご',company:'新国立劇場バレエ団',followers:44},
+    ],
+    roleHistory: ['ジゼル','アルブレヒト','ヒラリオン','ミルタ','バチルド'],
+  };
+  const state = { performance:null, shows:[], active:0 };
+
+  // ---------- toast / modal ----------
+  const toastEl=$('#toast'); let tT;
+  function toast(m){ toastEl.textContent=m; toastEl.classList.add('show'); clearTimeout(tT); tT=setTimeout(()=>toastEl.classList.remove('show'),2200); }
+  const overlay=$('#overlay'), modalBox=$('#modal');
+  function openModal(html){ modalBox.innerHTML=html; overlay.hidden=false; }
+  function closeModal(){ overlay.hidden=true; modalBox.innerHTML=''; }
+  overlay.addEventListener('click',e=>{ if(e.target===overlay) closeModal(); });
+
+  // ---------- select 描画 ----------
+  function fillSelect(sel, items, labelKey){
+    sel.innerHTML='';
+    items.forEach(it=>{ const o=el('option'); o.value=it.id; o.textContent=it[labelKey]; sel.appendChild(o); });
+  }
+  // 演目は複数選択(performance_works。上演順=選択順)
+  let selectedWorks=[db.works[0].id];
+  function renderWorkTags(){
+    const box=$('#p_works_tags'); box.innerHTML='';
+    if(!selectedWorks.length){ box.appendChild(el('span','hint','演目未選択(ガラ等は未選択のまま公演名で表現も可)')); return; }
+    selectedWorks.forEach(id=>{
+      const w=db.works.find(x=>x.id===id); if(!w) return;
+      const t=el('span','wtag', esc(w.title)+' <span class="x">×</span>');
+      t.querySelector('.x').onclick=()=>{ selectedWorks=selectedWorks.filter(x=>x!==id); renderWorkTags(); refreshMasterSelects(); };
+      box.appendChild(t);
+    });
+  }
+  function refreshMasterSelects(){
+    fillSelect($('#p_company'), db.companies,'name');
+    fillSelect($('#p_venue'), db.venues,'name');
+    const sel=$('#p_work_add'); sel.innerHTML='';
+    const ph=el('option'); ph.value=''; ph.textContent='＋ 演目を追加...'; sel.appendChild(ph);
+    db.works.filter(w=>!selectedWorks.includes(w.id)).forEach(w=>{
+      const o=el('option'); o.value=w.id; o.textContent=w.title; sel.appendChild(o);
+    });
+  }
+  $('#p_work_add').addEventListener('change',e=>{
+    if(!e.target.value) return;
+    selectedWorks.push(e.target.value);
+    renderWorkTags(); refreshMasterSelects();
+  });
+  renderWorkTags();
+  refreshMasterSelects();
+
+  // ---------- マスタのインライン追加 ----------
+  const masterCfg = { companies:{label:'団体',key:'name'}, works:{label:'演目',key:'title'}, venues:{label:'劇場',key:'name'} };
+  document.querySelectorAll('.inline-add[data-add]').forEach(a=>{
+    a.addEventListener('click',e=>{
+      e.preventDefault();
+      const kind=a.dataset.add, cfg=masterCfg[kind];
+      openModal(`
+        <div class="modal-head">新しい${cfg.label}を追加</div>
+        <div class="modal-body"><label>${cfg.label}名</label><input type="text" id="m_new" placeholder="${cfg.label}名を入力"></div>
+        <div class="modal-actions"><button class="btn" id="m_cancel">キャンセル</button><button class="btn primary" id="m_ok">追加</button></div>`);
+      const inp=$('#m_new'); inp.focus();
+      $('#m_cancel').onclick=closeModal;
+      $('#m_ok').onclick=()=>{
+        const v=inp.value.trim(); if(!v){ inp.classList.add('invalid'); return; }
+        const item={id:nid()}; item[cfg.key]=v; db[kind].push(item);
+        if(kind==='works'){
+          if(!selectedWorks.includes(item.id)) selectedWorks.push(item.id);
+          renderWorkTags();
+        }
+        refreshMasterSelects();
+        if(kind!=='works') $('#'+a.dataset.target).value=item.id;
+        closeModal(); toast(`${cfg.label}「${v}」を追加しました`);
+      };
+    });
+  });
+
+  // ---------- A2-0 公演一覧 ----------
+  const STATUS_LABEL={announced:'発表済み', on_sale:'発売中', finished:'終演', cancelled:'中止'};
+  const STATUS_CLS={announced:'warn', on_sale:'ok', finished:'', cancelled:'err'};
+  db.performances=[
+    {id:nid(), title:'『くるみ割り人形』全2幕', company:'東京バレエ団', start:'2026-12-19', end:'2026-12-23',
+     status:'on_sale', salesCount:2, showCount:6, castText:'6/6回 公開', seed:true},
+    {id:nid(), title:'『白鳥の湖』全3幕', company:'新国立劇場バレエ団', start:'2027-02-11', end:'2027-02-15',
+     status:'announced', salesCount:1, showCount:0, castText:'未入力', seed:true},
+    {id:nid(), title:'『ドン・キホーテ』全3幕', company:'東京バレエ団', start:'2026-05-08', end:'2026-05-10',
+     status:'finished', salesCount:2, showCount:4, castText:'4/4回 公開', seed:true}
+  ];
+  const fmtMD=s=>{ if(!s)return '—'; const p=s.split('-'); return parseInt(p[1])+'/'+parseInt(p[2]); };
+  const plFilter={ q:'', status:'' };
+  function plMatch(p){
+    if(plFilter.status && p.status!==plFilter.status) return false;
+    const q=plFilter.q.trim();
+    if(!q) return true;
+    const period=fmtMD(p.start)+' 〜 '+fmtMD(p.end);
+    return p.title.includes(q) || (p.company||'').includes(q) || period.includes(q);
+  }
+  function renderPerfList(){
+    const tb=$('#pl_rows'); tb.innerHTML='';
+    const rows=db.performances.filter(plMatch);
+    if(!rows.length){
+      const msg=db.performances.length? '条件に一致する公演がありません' : '公演が未登録です';
+      const tr=el('tr'); tr.innerHTML=`<td colspan="8" style="color:var(--muted);font-size:13px;text-align:center;padding:16px">${msg}</td>`;
+      tb.appendChild(tr); return;
+    }
+    rows.forEach(p=>{
+      const cls=STATUS_CLS[p.status];
+      const st= cls ? `<span class="badge ${cls}" style="margin-left:0">${STATUS_LABEL[p.status]}</span>`
+                    : `<span style="color:var(--muted);font-size:12px">${STATUS_LABEL[p.status]}</span>`;
+      const tr=el('tr');
+      tr.innerHTML=`<td>${esc(p.title)}</td><td style="font-size:13px">${esc(p.company||'—')}</td>`+
+        `<td style="font-size:13px">${fmtMD(p.start)} 〜 ${fmtMD(p.end)}</td><td>${st}</td>`+
+        `<td>${p.showCount?p.showCount+'回':'—'}</td><td>${p.salesCount?p.salesCount+'件':'—'}</td>`+
+        `<td style="font-size:12px">${esc(p.castText||'未入力')}</td>`+
+        `<td><a class="inline-add" href="#" data-act="edit" data-id="${p.id}">編集</a> · `+
+        `<a class="inline-add" href="#" data-act="cast" data-id="${p.id}">キャスト</a></td>`;
+      tb.appendChild(tr);
+    });
+    tb.querySelectorAll('a[data-act]').forEach(a=>{
+      a.onclick=e=>{ e.preventDefault(); perfListAction(a.dataset.act, a.dataset.id); };
+    });
+  }
+  function perfListAction(act,id){
+    const p=db.performances.find(x=>x.id===id); if(!p)return;
+    if(act==='edit'){
+      $('#p_title').value=p.title; $('#p_start').value=p.start||''; $('#p_end').value=p.end||'';
+      $('#p_status').value=p.status;
+      const c=db.companies.find(c=>c.name===p.company); if(c)$('#p_company').value=c.id;
+      state.perfRecId=id;
+      $('#s1').scrollIntoView({behavior:'smooth',block:'start'});
+      toast('A2-1 に読み込みました(保存で上書き)');
+    }else{
+      if(state.perfRecId===id && state.shows.length){
+        $('#s3').scrollIntoView({behavior:'smooth',block:'start'});
+      }else{
+        toast('この公演の公演回は未読込です(プロトタイプでは編集中の公演のみキャスト入力へ遷移)');
+      }
+    }
+  }
+  function updatePerfCastStatus(){
+    const rec=db.performances.find(p=>p.id===state.perfRecId); if(!rec)return;
+    const pub=state.shows.filter(s=>s.published).length;
+    const drafts=state.shows.filter(s=>s.saved&&!s.published).length;
+    rec.castText = pub? `${pub}/${state.shows.length}回 公開` : (drafts? '下書きのみ' : '未入力');
+    renderPerfList();
+  }
+  $('#pl_q').addEventListener('input',e=>{ plFilter.q=e.target.value; renderPerfList(); });
+  $('#pl_status').addEventListener('change',e=>{ plFilter.status=e.target.value; renderPerfList(); });
+  $('#pl_new').addEventListener('click',()=>{
+    state.perfRecId=null;
+    $('#p_title').value='';
+    $('#s1').scrollIntoView({behavior:'smooth',block:'start'});
+    toast('新規公演としてA2-1に入力してください');
+  });
+  renderPerfList();
+
+  // ---------- A2-1 チケット販売日時(複数) ----------
+  let salesRows = [ {label:'一般発売', at:'2026-07-15T10:00'} ];
+  function renderSales(){
+    const box=$('#sale_list'); box.innerHTML='';
+    if(!salesRows.length){ box.appendChild(el('div','hint','販売日時は未登録です(発売通知は送られません)')); }
+    salesRows.forEach((s,i)=>{
+      const row=el('div','sale-row');
+      const lab=el('input'); lab.type='text'; lab.value=s.label; lab.placeholder='種別(例: 会員先行 / 一般発売)';
+      lab.oninput=()=>s.label=lab.value;
+      const dt=el('input'); dt.type='datetime-local'; dt.value=s.at;
+      dt.oninput=()=>s.at=dt.value;
+      const x=el('span','del'); x.textContent='削除'; x.style.paddingTop='8px';
+      x.onclick=()=>{ salesRows.splice(i,1); renderSales(); };
+      row.append(lab,dt,x); box.appendChild(row);
+    });
+  }
+  $('#sale_add').addEventListener('click',()=>{ salesRows.push({label:'',at:''}); renderSales(); });
+  renderSales();
+
+  // ---------- A2-1 保存 ----------
+  function setInvalid(id,errId,bad){ $('#'+id).classList.toggle('invalid',bad); $('#'+errId).style.display=bad?'block':'none'; }
+  $('#p_save').addEventListener('click',()=>{
+    const title=$('#p_title').value.trim(), source=$('#p_source').value.trim();
+    const companyOk=!!$('#p_company').value;
+    setInvalid('p_title','err_title',!title);
+    setInvalid('p_company','err_company',!companyOk);
+    setInvalid('p_source','err_source',!source);
+    if(!title||!companyOk||!source){ toast('必須項目を入力してください'); return; }
+    // 販売日時: 日時が入っている行のみ採用。日時空で種別だけの行はエラー。
+    const badSale = salesRows.some(s=>s.label.trim() && !s.at);
+    if(badSale){ toast('販売日時が空の行があります(種別のみ)'); return; }
+    const sales = salesRows.filter(s=>s.at).map(s=>({ label:s.label.trim()||'一般発売', at:s.at }))
+      .sort((a,b)=>a.at.localeCompare(b.at));
+    state.performance={
+      id:nid(), title,
+      company: db.companies.find(c=>c.id===$('#p_company').value)?.name || '',
+      works: selectedWorks.map(id=>db.works.find(w=>w.id===id)?.title).filter(Boolean),
+      venue: db.venues.find(v=>v.id===$('#p_venue').value)?.name || '',
+      start:$('#p_start').value, end:$('#p_end').value, source, sales,
+      status:$('#p_status').value,
+    };
+    // 公演一覧(A2-0)へ upsert
+    if(!state.perfRecId) state.perfRecId=nid();
+    const recIdx=db.performances.findIndex(p=>p.id===state.perfRecId);
+    const prev=recIdx>=0? db.performances[recIdx] : null;
+    const rec={ id:state.perfRecId, title, company:state.performance.company,
+      start:state.performance.start, end:state.performance.end, status:state.performance.status,
+      salesCount:sales.length, showCount:prev?prev.showCount:0, castText:prev?prev.castText:'未入力' };
+    if(recIdx>=0) db.performances[recIdx]=rec; else db.performances.push(rec);
+    renderPerfList();
+    $('#s1state').textContent='✓ 保存済み(通知なし)'+(sales.length?` / 販売${sales.length}件`:'');
+    $('#s2crumb').textContent=state.performance.title;
+    $('#s3crumb').textContent=state.performance.title;
+    $('#s2').classList.remove('dim');
+    toast('公演を保存しました。公演回の登録へ');
+    $('#s2').scrollIntoView({behavior:'smooth',block:'start'});
+  });
+
+  // ---------- A2-2 一括生成 ----------
+  const WD=['日','月','火','水','木','金','土'];
+  // 祝日は本来は祝日ライブラリ/マスタから取得する。プロトタイプは2026年の内蔵表で判定。
+  const HOLIDAYS={ 2026:new Set(['1/1','1/12','2/11','2/23','3/20','4/29','5/3','5/4','5/5','5/6','7/20','8/11','9/21','9/22','9/23','10/12','11/3','11/23']) };
+  function isHoliday(d){ const s=HOLIDAYS[d.getFullYear()]; return !!s && s.has((d.getMonth()+1)+'/'+d.getDate()); }
+  // 曜日別の開演時刻(キー: 0=日..6=土, hol=祝)。空欄=その日は公演なし。
+  const wdTimes={ 1:'19:00',2:'19:00',3:'19:00',4:'19:00',5:'19:00',6:'18:00',0:'14:00',hol:'' };
+  function renderWdGrid(){
+    const box=$('#g_wd'); box.innerHTML='';
+    const cells=[[1,'月'],[2,'火'],[3,'水'],[4,'木'],[5,'金'],[6,'土'],[0,'日'],['hol','祝']];
+    cells.forEach(([key,name])=>{
+      const c=el('div','wd-cell'+(key==='hol'?' holiday':''));
+      c.innerHTML=`<div class="wd-name">${name}</div>`;
+      const inp=el('input'); inp.type='text'; inp.placeholder='—'; inp.value=wdTimes[key]||'';
+      inp.oninput=()=>{ wdTimes[key]=inp.value.trim(); };
+      c.appendChild(inp); box.appendChild(c);
+    });
+  }
+  renderWdGrid();
+  function normTime(t){ const m=(t||'').match(/^(\d{1,2}):(\d{2})$/); return m? m[1].padStart(2,'0')+':'+m[2] : null; }
+  let genDraft=[];
+  $('#g_gen').addEventListener('click',()=>{
+    if(!state.performance){ toast('先に公演を保存してください'); return; }
+    const pm=$('#g_period').value.match(/(\d{1,2})\/(\d{1,2}).*?(\d{1,2})\/(\d{1,2})/);
+    if(!pm){ toast('期間を「M/D 〜 M/D」形式で入力'); return; }
+    if(![0,1,2,3,4,5,6,'hol'].some(k=>normTime(wdTimes[k]))){ toast('少なくとも1つの曜日に時刻を入力してください'); return; }
+    const year=parseInt((state.performance.start||'2026').slice(0,4))||2026;
+    const d0=new Date(year, pm[1]-1, pm[2]), d1=new Date(year, pm[3]-1, pm[4]);
+    genDraft=[];
+    for(let d=new Date(d0); d<=d1; d.setDate(d.getDate()+1)){
+      const w=d.getDay(), hol=isHoliday(d);
+      const time = (hol && normTime(wdTimes.hol)) ? normTime(wdTimes.hol) : normTime(wdTimes[w]);
+      if(!time) continue; // 時刻未設定の曜日はその日を生成しない
+      const wname = WD[w] + (hol?'・祝':'');
+      genDraft.push({ id:nid(), date:new Date(d), time,
+        label:`${d.getMonth()+1}/${d.getDate()}(${wname}) ${time}` });
+    }
+    if(!genDraft.length) toast('この期間・時刻設定では公演回が生成されませんでした');
+    renderGen();
+  });
+  function renderGen(){
+    const list=$('#g_list'); list.innerHTML='';
+    if(!genDraft.length){ list.appendChild(el('div','empty','公演回がありません')); $('#g_save').disabled=true; return; }
+    genDraft.forEach(g=>{
+      const r=el('div','r'); r.innerHTML=`<span>${g.label}</span><span class="x" data-id="${g.id}">削除</span>`;
+      list.appendChild(r);
+    });
+    list.querySelectorAll('.x').forEach(x=>x.onclick=()=>{ genDraft=genDraft.filter(g=>g.id!==x.dataset.id); renderGen(); });
+    $('#g_save').disabled=false;
+  }
+  $('#g_save').addEventListener('click',()=>{
+    if(!genDraft.length)return;
+    state.shows=genDraft.map(g=>({ id:g.id, date:g.date, time:g.time, label:g.label, casts:[], published:false, saved:false }));
+    state.active=0;
+    const glRec=db.performances.find(p=>p.id===state.perfRecId);
+    if(glRec){ glRec.showCount=state.shows.length; glRec.castText='未入力'; renderPerfList(); }
+    $('#s2state').textContent=`✓ ${state.shows.length}回を保存`;
+    $('#s3').classList.remove('dim');
+    renderCastScreen();
+    toast(`${state.shows.length}回を保存しました。キャスト入力へ`);
+    $('#s3').scrollIntoView({behavior:'smooth',block:'start'});
+  });
+
+  // ---------- A2-3 キャスト入力 ----------
+  function curShow(){ return state.shows[state.active]; }
+  function renderCastScreen(){ renderTabs(); renderRows(); updateNotice(); }
+  function renderTabs(){
+    const t=$('#c_tabs'); t.innerHTML='';
+    state.shows.forEach((s,i)=>{
+      const p=el('span','pill'+(i===state.active?' active':''));
+      p.innerHTML= esc(s.label) + (s.published?' <span class="ck">✓公開・通知登録済</span>': s.saved?' <span class="ck">✓下書</span>':'');
+      p.onclick=()=>{ state.active=i; renderCastScreen(); };
+      t.appendChild(p);
+    });
+  }
+  function newRow(role='',dancer=null,status='scheduled'){ return {role,dancerId:dancer?dancer.id:null,dancerName:dancer?dancer.name:'',status}; }
+  function renderRows(){
+    const show=curShow(); const tb=$('#c_rows'); tb.innerHTML='';
+    if(!show.casts.length) show.casts.push(newRow());
+    show.casts.forEach((row,idx)=>{
+      const tr=el('tr');
+      // 役名
+      const tdRole=el('td'); const ri=el('input'); ri.type='text'; ri.value=row.role; ri.setAttribute('list','roleList');
+      ri.oninput=()=>row.role=ri.value; tdRole.appendChild(ri);
+      // ダンサー検索
+      const tdD=el('td','dc-wrap'); const di=el('input'); di.type='text'; di.value=row.dancerName||'';
+      di.placeholder='名前・かなで検索'; tdD.appendChild(di);
+      const dd=el('div','dropdown'); dd.style.display='none'; tdD.appendChild(dd);
+      function closeDd(){ dd.style.display='none'; }
+      di.oninput=()=>{
+        row.dancerId=null; const q=di.value.trim(); updateNotice();
+        if(!q){ closeDd(); return; }
+        const hits=db.dancers.filter(d=>d.name.includes(q)||(d.kana&&d.kana.includes(q)));
+        dd.innerHTML='';
+        hits.slice(0,6).forEach(d=>{
+          const h=el('div','hit',`${esc(d.name)} <small>(${esc(d.company)} · ${d.followers}フォロワー)</small>`);
+          h.onclick=()=>{ row.dancerId=d.id; row.dancerName=d.name; di.value=d.name; closeDd(); updateNotice(); };
+          dd.appendChild(h);
+        });
+        const nw=el('div','new',`+ 「${esc(q)}」を新規ダンサーとして追加`);
+        nw.onclick=()=> addDancerInline(q, d=>{ row.dancerId=d.id; row.dancerName=d.name; di.value=d.name; closeDd(); updateNotice(); });
+        dd.appendChild(nw); dd.style.display='block';
+      };
+      di.onblur=()=> setTimeout(closeDd,180);
+      // 状態
+      const tdS=el('td'); const ss=el('select');
+      [['scheduled','出演予定'],['changed','変更'],['cancelled','降板']].forEach(([v,l])=>{const o=el('option');o.value=v;o.textContent=l;ss.appendChild(o);});
+      ss.value=row.status; ss.onchange=()=>row.status=ss.value; tdS.appendChild(ss);
+      // 削除
+      const tdX=el('td','del'); tdX.textContent='削除';
+      tdX.onclick=()=>{ show.casts.splice(idx,1); renderRows(); updateNotice(); };
+      tr.append(tdRole,tdD,tdS,tdX); tb.appendChild(tr);
+    });
+  }
+  function addDancerInline(name, cb){
+    openModal(`
+      <div class="modal-head">新規ダンサーを追加</div>
+      <div class="modal-body">
+        <label>名前</label><input type="text" id="d_name" value="${esc(name)}">
+        <label>かな(検索用)</label><input type="text" id="d_kana">
+        <label>所属</label><input type="text" id="d_company" value="新国立劇場バレエ団">
+      </div>
+      <div class="modal-actions"><button class="btn" id="d_cancel">キャンセル</button><button class="btn primary" id="d_ok">追加</button></div>`);
+    $('#d_name').focus();
+    $('#d_cancel').onclick=closeModal;
+    $('#d_ok').onclick=()=>{
+      const nm=$('#d_name').value.trim(); if(!nm){ $('#d_name').classList.add('invalid'); return; }
+      const d={id:nid(),name:nm,kana:$('#d_kana').value.trim(),company:$('#d_company').value.trim()||'—',followers:0};
+      db.dancers.push(d); closeModal(); toast(`ダンサー「${nm}」を追加(フォロワー0)`); cb(d);
+    };
+  }
+  $('#c_addrole').addEventListener('click',()=>{ curShow().casts.push(newRow()); renderRows(); });
+  $('#c_copy').addEventListener('click',()=>{
+    if(state.active===0){ toast('前の回がありません'); return; }
+    const prev=state.shows[state.active-1];
+    if(!prev.casts.some(r=>r.dancerId||r.role)){ toast('前の回にキャストがありません'); return; }
+    curShow().casts=prev.casts.map(r=>({...r}));
+    renderRows(); updateNotice(); toast('前の回のキャストを複製しました');
+  });
+  function activeDancers(){
+    const seen=new Set(), list=[];
+    curShow().casts.forEach(r=>{ if(r.dancerId&&r.status!=='cancelled'&&!seen.has(r.dancerId)){ seen.add(r.dancerId); list.push(db.dancers.find(d=>d.id===r.dancerId)); } });
+    return list;
+  }
+  function updateNotice(){
+    const ds=activeDancers();
+    if(!ds.length){ $('#c_notice').innerHTML='🔔 ダンサー未選択 ― 通知対象はいません'; return; }
+    // 重複除外の概算(単純合算。実DBでは follows の distinct user_id)
+    const total=ds.reduce((s,d)=>s+(d.followers||0),0);
+    const detail=ds.map(d=>`${esc(d.name)}: ${d.followers}人`).join(' / ');
+    $('#c_notice').innerHTML=`🔔 この内容で通知すると、フォロワー <strong>${total}人</strong> にLINEが届きます(${detail}・重複除外済み)`;
+  }
+  function validateCast(){
+    const src=$('#c_source').value.trim();
+    $('#c_source').classList.toggle('invalid',!src); $('#err_csource').style.display=src?'none':'block';
+    if(!src){ toast('出典URLは必須です'); return false; }
+    const hasCast=curShow().casts.some(r=>r.dancerId&&r.role.trim());
+    if(!hasCast){ toast('役名+ダンサーの組を1件以上入力してください'); return false; }
+    return true;
+  }
+  $('#c_draft').addEventListener('click',()=>{
+    if(!validateCast())return;
+    curShow().saved=true; curShow().published=false;
+    // 役名履歴に追加
+    curShow().casts.forEach(r=>{ if(r.role&&!db.roleHistory.includes(r.role)) db.roleHistory.push(r.role); });
+    refreshRoleList(); renderTabs(); updatePerfCastStatus();
+    $('#c_msg').textContent='下書き保存しました(公演ページ非表示・通知なし)';
+    toast('下書き保存(通知なし)');
+  });
+  $('#c_notify').addEventListener('click',()=>{
+    if(!validateCast())return;
+    const ds=activeDancers(); const total=ds.reduce((s,d)=>s+(d.followers||0),0);
+    const changed=curShow().casts.some(r=>r.status==='changed'||r.status==='cancelled');
+    const rowsHtml=curShow().casts.filter(r=>r.dancerId&&r.role).map(r=>
+      `<div><span class="role">${esc(r.role)}:</span> ${esc(r.dancerName)}${r.status!=='scheduled'?` <span class="badge warn">${r.status==='changed'?'変更':'降板'}</span>`:''}</div>`).join('');
+    openModal(`
+      <div class="modal-head">${changed?'キャスト変更':'キャスト発表'}を通知しますか?(二段確認)</div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--muted)">実際にLINEへ送られる内容です。登録後の取り消しはできません(送信は次回バッチ 9:00 / 18:00)。</p>
+        <div class="line-card">
+          <div class="banner"><h4>${esc(state.performance.title)}</h4><small>${esc(state.performance.company)} · ${esc(curShow().label)}</small></div>
+          <div class="cbody">${rowsHtml}</div>
+          <a class="cta" href="#">チケット・詳細を見る</a>
+        </div>
+        <div class="notice" style="margin-top:14px">送信対象: フォロワー <strong>${total}人</strong>(重複除外済み)</div>
+      </div>
+      <div class="modal-actions"><button class="btn" id="n_back">戻る</button><button class="btn primary" id="n_send">${total}人分をバッチに登録する</button></div>`);
+    $('#n_back').onclick=closeModal;
+    $('#n_send').onclick=()=>{
+      curShow().saved=true; curShow().published=true;
+      curShow().casts.forEach(r=>{ if(r.role&&!db.roleHistory.includes(r.role)) db.roleHistory.push(r.role); });
+      refreshRoleList(); renderTabs(); updatePerfCastStatus(); closeModal();
+      $('#c_msg').textContent=`公開・${total}人分を配信キューに登録しました(次回バッチで送信)`;
+      toast(`${total}人分を配信キューに登録しました`);
+    };
+  });
+  function refreshRoleList(){
+    let dl=$('#roleList'); if(!dl){ dl=el('datalist'); dl.id='roleList'; document.body.appendChild(dl); }
+    dl.innerHTML=''; db.roleHistory.forEach(r=>{const o=el('option'); o.value=r; dl.appendChild(o);});
+  }
+  refreshRoleList();
+
+  // ---------- A2-4 CSVインポート ----------
+  function lev(a,b){
+    const m=a.length,n=b.length,d=Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);
+    for(let j=0;j<=n;j++)d[0][j]=j;
+    for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+    return d[m][n];
+  }
+  $('#csv_tpl').onclick=e=>{ e.preventDefault(); $('#csv_text').value='日付,開演時刻,役名,ダンサー名\n10/12,19:00,ジゼル,米沢唯\n10/12,19:00,アルブレヒト,井澤駿'; toast('テンプレートを貼り付けました'); };
+  $('#csv_check').addEventListener('click',()=>{
+    const out=$('#csv_out'); out.innerHTML='';
+    if(!state.performance||!state.shows.length){ out.appendChild(el('div','notice','先にA2-1〜A2-3で公演と公演回を保存してください(マッチ対象がありません)。')); return; }
+    let lines=$('#csv_text').value.trim().split(/\r?\n/).filter(l=>l.trim());
+    if(lines.length && /日付|date/i.test(lines[0])) lines=lines.slice(1);
+    let ok=0,warn=0,err=0;
+    const rows=lines.map((ln,i)=>{
+      const [date,time,role,name]=ln.split(',').map(s=>(s||'').trim());
+      const label=`${(date||'').replace(/^0/,'')} ${time}`;
+      const show=state.shows.find(s=>{ const md=`${s.date.getMonth()+1}/${s.date.getDate()}`; return md===date && s.time===time; });
+      let judge, cls;
+      if(!show){ judge=`エラー: 該当する公演回がありません`; cls='err'; err++; }
+      else {
+        const exact=db.dancers.find(d=>d.name===name);
+        if(exact){ judge='✓ OK'; cls='ok'; ok++; }
+        else {
+          const near=db.dancers.map(d=>({d,dist:Math.min(lev(d.name,name||''),d.kana?lev(d.kana,name||''):9)})).sort((a,b)=>a.dist-b.dist)[0];
+          if(near&&near.dist<=1){ judge=`要確認: ${esc(near.d.name)} に名寄せ?`; cls='warn'; warn++; }
+          else { judge='要確認: 新規ダンサー候補'; cls='warn'; warn++; }
+        }
+      }
+      return {i:i+1,date,time,role,name,label,judge,cls};
+    });
+    const tbl=el('table');
+    tbl.innerHTML='<thead><tr><th style="width:40px">行</th><th style="width:110px">公演回</th><th style="width:110px">役名</th><th>ダンサー</th><th style="width:200px">判定</th></tr></thead>';
+    const tb=el('tbody');
+    rows.forEach(r=>{
+      const color=r.cls==='ok'?'var(--ok)':r.cls==='warn'?'var(--warn-ink)':'var(--err)';
+      const tr=el('tr'); tr.innerHTML=`<td>${r.i}</td><td>${esc(r.date)} ${esc(r.time)}</td><td>${esc(r.role)}</td><td>${esc(r.name)}</td><td style="font-size:12px;color:${color}">${r.judge}</td>`;
+      tb.appendChild(tr);
+    });
+    tbl.appendChild(tb); out.appendChild(tbl);
+    out.appendChild(el('div','hint',`OK ${ok}行 / 要確認 ${warn}行 / エラー ${err}行 ― エラー行を除いた ${ok+warn}行を下書き取込できます`));
+    out.appendChild(el('div','notice','この取込では通知は送信されません。取り込んだキャストはすべて「下書き」となり、公演ページにも表示されません。通知と公開はA2-3で回ごとに確認してから実行します。'));
+    const act=el('div','actions'); act.style.cssText='border:none;justify-content:flex-end;';
+    const btn=el('button','btn primary',`${ok+warn}行を下書きとして取り込む`); btn.disabled=(ok+warn)===0;
+    btn.onclick=()=>{ toast(`${ok+warn}行を下書き取込しました(通知なし・ロールバック可能)`); };
+    act.appendChild(btn); out.appendChild(act);
+  });
+
+})();
+</script>
+</body>
+</html>

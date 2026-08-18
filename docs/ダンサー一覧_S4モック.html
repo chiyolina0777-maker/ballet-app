@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S4 ダンサー一覧(動作モック / フェーズ1)</title>
+<style>
+  :root {
+    --berry: #6D2E46; --rose: #A26769; --cream: #ECE2D0;
+    --tint: #F7F1EA; --rose-tint: #F3E7E7; --ink: #2B2B2B; --muted: #6B6B6B;
+    --line: #DDD5CB; --warn-bg: #FAF3E3; --warn-ink: #7A5A18; --ok: #2E6E4E;
+    --line-green: #06C755;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: "游ゴシック", "Yu Gothic", sans-serif; background: #E9E2D8; color: var(--ink); font-size: 14px; line-height: 1.7; }
+  .phone { max-width: 420px; margin: 0 auto; min-height: 100vh; background: var(--tint); display: flex; flex-direction: column; }
+
+  /* デモ操作バー(モック専用・実装対象外) */
+  .demo { background: var(--ink); color: #ccc; font-size: 11px; padding: 6px 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .demo a { color: #F3E7E7; cursor: pointer; text-decoration: underline; }
+  .demo .st { margin-left: auto; color: #999; }
+
+  header { background: #fff; border-bottom: 1px solid var(--line); padding: 12px 16px 0; position: sticky; top: 0; z-index: 10; }
+  header h1 { font-size: 15px; color: var(--berry); font-weight: 600; }
+  .gnav { display: flex; gap: 4px; margin-top: 8px; }
+  .gnav span { flex: 1; text-align: center; font-size: 12px; padding: 8px 0; color: var(--muted); border-bottom: 2px solid transparent; }
+  .gnav span.active { color: var(--berry); font-weight: 600; border-bottom-color: var(--berry); }
+
+  .searchbar { padding: 12px 16px 8px; background: var(--tint); position: sticky; top: 76px; z-index: 9; border-bottom: 1px solid var(--line); }
+  .searchbar input { width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: 999px; font: inherit; font-size: 14px; background: #fff; }
+  .searchbar input:focus { outline: 2px solid var(--rose); }
+
+  main { flex: 1; padding-bottom: 24px; }
+
+  /* 友だち追加バナー(§4フロー: フォロー成立後・未追加時) */
+  .friend-banner { margin: 12px 16px 0; background: var(--warn-bg); border: 1px solid #E6D19A; color: var(--warn-ink); border-radius: 10px; padding: 12px; font-size: 13px; display: none; }
+  .friend-banner.show { display: block; }
+  .friend-banner .fb-btn { display: block; text-align: center; background: var(--line-green); color: #fff; border-radius: 8px; padding: 9px; font-weight: 600; margin-top: 8px; cursor: pointer; }
+  .friend-banner .fb-close { float: right; color: var(--warn-ink); cursor: pointer; font-size: 12px; }
+
+  .company-sec { margin-top: 16px; }
+  .company-sec > h2 { font-size: 13px; color: var(--berry); font-weight: 600; padding: 0 16px 6px; display: flex; justify-content: space-between; align-items: baseline; }
+  .company-sec > h2 small { color: var(--muted); font-weight: 400; font-size: 11px; }
+  .dlist { background: #fff; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .drow { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+  .drow:last-child { border-bottom: none; }
+  .drow.hl { animation: hlfade 2.4s ease-out; }
+  @keyframes hlfade { 0%,40% { background: var(--rose-tint); } 100% { background: #fff; } }
+  .dname { flex: 1; min-width: 0; }
+  .dname .nm { font-size: 14px; font-weight: 600; }
+  .dname .kn { font-size: 11px; color: var(--muted); }
+  .rank { flex: none; font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+  .fbtn { flex: none; font-size: 12px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--rose); background: #fff; color: var(--berry); cursor: pointer; font: inherit; min-width: 92px; }
+  .fbtn.on { background: var(--berry); border-color: var(--berry); color: #fff; }
+  .fbtn.cfbtn { font-size: 11px; padding: 4px 10px; min-width: auto; }
+  .empty { padding: 32px 16px; text-align: center; color: var(--muted); font-size: 13px; }
+
+  /* LINEログイン interstitial(S9 の簡易モック) */
+  .overlay { position: fixed; inset: 0; background: rgba(43,43,43,.5); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
+  .overlay[hidden] { display: none; }
+  .lmodal { background: #fff; border-radius: 14px; max-width: 340px; width: 100%; overflow: hidden; }
+  .lmodal .lhead { background: var(--line-green); color: #fff; padding: 14px 18px; font-weight: 700; font-size: 15px; }
+  .lmodal .lbody { padding: 18px; font-size: 13px; }
+  .lmodal .perm { background: #F5F5F5; border-radius: 8px; padding: 10px 12px; margin: 10px 0; font-size: 12px; color: #555; }
+  .lmodal label.fr { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin-top: 12px; cursor: pointer; }
+  .lmodal label.fr input { margin-top: 3px; }
+  .lmodal label.fr small { color: var(--muted); }
+  .lmodal .lactions { padding: 0 18px 18px; }
+  .lmodal .lok { display: block; width: 100%; background: var(--line-green); color: #fff; border: none; border-radius: 8px; padding: 11px; font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; }
+  .lmodal .lcancel { display: block; width: 100%; background: none; border: none; color: var(--muted); font: inherit; font-size: 12px; padding: 10px; cursor: pointer; }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 20px; border-radius: 999px; font-size: 13px; opacity: 0; transition: opacity .25s; z-index: 60; pointer-events: none; max-width: 90%; text-align: center; }
+  .toast.show { opacity: 1; }
+
+  .specnote { margin: 20px 16px; font-size: 11px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 10px; }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="demo">
+    デモ:
+    <a id="demo_reset">状態リセット</a>
+    <a id="demo_focus">S3からの遷移(米沢唯)</a>
+    <span class="st" id="demo_state">未ログイン / 友だち未追加</span>
+  </div>
+
+  <header>
+    <h1>バレエ観劇アプリ(仮)</h1>
+    <nav class="gnav">
+      <span>ホーム</span><span>公演</span><span class="active">ダンサー</span><span>マイページ</span>
+    </nav>
+  </header>
+
+  <div class="searchbar">
+    <input type="text" id="q" placeholder="ダンサー名・かな・バレエ団で検索">
+  </div>
+
+  <main>
+    <div class="friend-banner" id="fbanner">
+      <span class="fb-close" id="fb_close">閉じる ✕</span>
+      <strong>通知を受け取るには友だち追加が必要です</strong><br>
+      フォローは完了しています。キャスト発表・発売開始の通知を受け取るには、公式アカウントを友だち追加してください。
+      <span class="fb-btn" id="fb_add">LINEで友だち追加</span>
+    </div>
+    <div id="sections"></div>
+    <div class="specnote">
+      モック仕様: バレエ団ごとにセクション表示(団体内は階級順→かな順)。検索ボックス1つでダンサー名・かな・バレエ団名を横断検索(団体名ヒット時はその団体を全員表示)。検索中もグルーピングを維持。
+      フォローは未ログイン時にLINEログイン(bot_prompt=aggressive)を経由し、認証後に自動でフォロー完了・元位置へ復帰。
+      友だち追加のチェックを外した場合はフォロー成立のまま友だち追加バナーを表示(§4フロー)。
+      セクション見出しの「団体をフォロー」はバレエ団フォロー(company_follows)で、同一の遅延ログインフローを通る(「その他」には置かない)。
+      発売通知の宛先は「主催バレエ団フォロワー∪出演ダンサーフォロワー」のdistinct(§6)のため、両方フォローしても通知は1通(重複排除はサーバー側。モックの表示対象外)。
+      S5(ダンサー詳細)はフェーズ1では作らないため、行タップの詳細遷移はなし。
+    </div>
+  </main>
+
+</div>
+
+<div class="overlay" id="loverlay" hidden>
+  <div class="lmodal">
+    <div class="lhead">LINEログイン(モック)</div>
+    <div class="lbody">
+      <strong>バレエ観劇アプリ(仮)</strong> が以下を要求しています:
+      <div class="perm">プロフィール情報(表示名)・ユーザー識別子</div>
+      <label class="fr">
+        <input type="checkbox" id="l_friend" checked>
+        <span>公式アカウントを友だち追加する<br>
+        <small>bot_prompt=aggressive による併記。外すと通知は届きません(あとから追加可能)</small></span>
+      </label>
+    </div>
+    <div class="lactions">
+      <button class="lok" id="l_ok">許可してログイン</button>
+      <button class="lcancel" id="l_cancel">キャンセル</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  const $=(s,r=document)=>r.querySelector(s);
+  const el=(t,c,h)=>{const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e;};
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  // ---------- データ ----------
+  const RANK_ORDER=['プリンシパル','ファースト・ソリスト','ソリスト','ファースト・アーティスト','アーティスト',''];
+  const dancers=[
+    {id:'d1', name:'米沢唯',   kana:'よねざわゆい',     company:'新国立劇場バレエ団', rank:'プリンシパル'},
+    {id:'d2', name:'井澤駿',   kana:'いざわしゅん',     company:'新国立劇場バレエ団', rank:'プリンシパル'},
+    {id:'d3', name:'木村優里', kana:'きむらゆうり',     company:'新国立劇場バレエ団', rank:'プリンシパル'},
+    {id:'d4', name:'速水渉悟', kana:'はやみしょうご',   company:'新国立劇場バレエ団', rank:'プリンシパル'},
+    {id:'d5', name:'柴山紗帆', kana:'しばやまさほ',     company:'新国立劇場バレエ団', rank:'ファースト・ソリスト'},
+    {id:'d6', name:'渡辺与布', kana:'わたなべよたか',   company:'新国立劇場バレエ団', rank:'ソリスト'},
+    {id:'d7', name:'秋山瑛',   kana:'あきやまあきら',   company:'東京バレエ団', rank:'プリンシパル'},
+    {id:'d8', name:'宮川新大', kana:'みやがわあらた',   company:'東京バレエ団', rank:'プリンシパル'},
+    {id:'d9', name:'足立真里亜', kana:'あだちまりあ',   company:'東京バレエ団', rank:'プリンシパル'},
+    {id:'d10',name:'生方隆之介', kana:'うぶかたりゅうのすけ', company:'東京バレエ団', rank:'ソリスト'},
+    {id:'d11',name:'菅井円加', kana:'すがいまどか',     company:'', rank:''},
+  ];
+  const OTHER='その他';
+  const companies=[...new Set(dancers.map(d=>d.company||OTHER))];
+
+  // ---------- 状態 ----------
+  const state={ loggedIn:false, friend:false, follows:new Set(), companyFollows:new Set(),
+                firstFollowToastDone:false, pendingFollow:null, filter:'' };
+
+  // ---------- toast ----------
+  const toastEl=$('#toast'); let tT;
+  function toast(m){ toastEl.textContent=m; toastEl.classList.add('show'); clearTimeout(tT); tT=setTimeout(()=>toastEl.classList.remove('show'),2400); }
+
+  function demoState(){
+    $('#demo_state').textContent=(state.loggedIn?'ログイン済み':'未ログイン')+' / '+(state.friend?'友だち追加済み':'友だち未追加')
+      +' / フォロー: ダンサー'+state.follows.size+'・団体'+state.companyFollows.size;
+  }
+
+  // ---------- 一覧描画 ----------
+  function sortDancers(a,b){
+    const r=RANK_ORDER.indexOf(a.rank)-RANK_ORDER.indexOf(b.rank);
+    if(r!==0) return r;
+    return (a.kana||'').localeCompare(b.kana||'','ja');
+  }
+  function renderSections(){
+    const root=$('#sections'); root.innerHTML='';
+    const q=state.filter.trim();
+    let shown=0;
+    companies.forEach(comp=>{
+      // 団体名が検索語にヒットしたら、その団体は全員表示。それ以外はダンサー名・かなで絞り込み
+      const compHit = q && comp.includes(q);
+      const members=dancers
+        .filter(d=>(d.company||OTHER)===comp)
+        .filter(d=>!q || compHit || d.name.includes(q) || (d.kana||'').includes(q))
+        .sort(sortDancers);
+      if(!members.length) return;
+      shown+=members.length;
+      const sec=el('section','company-sec');
+      const h=el('h2','',`<span>${esc(comp)} <small>${members.length}名</small></span>`);
+      if(comp!==OTHER){
+        const con=state.companyFollows.has(comp);
+        const cb=el('button','fbtn cfbtn'+(con?' on':''), con?'✓ フォロー中':'団体をフォロー');
+        cb.onclick=()=>onFollowTap('company',comp);
+        h.appendChild(cb);
+      }
+      sec.appendChild(h);
+      const list=el('div','dlist');
+      members.forEach(d=>{
+        const row=el('div','drow'); row.id='row-'+d.id;
+        const on=state.follows.has(d.id);
+        row.innerHTML=`<div class="dname"><div class="nm">${esc(d.name)}</div><div class="kn">${esc(d.kana||'')}</div></div>`+
+          (d.rank?`<span class="rank">${esc(d.rank)}</span>`:'');
+        const b=el('button','fbtn'+(on?' on':''),on?'✓ フォロー中':'フォロー');
+        b.onclick=()=>onFollowTap('dancer',d.id);
+        row.appendChild(b);
+        list.appendChild(row);
+      });
+      sec.appendChild(list); root.appendChild(sec);
+    });
+    if(!shown) root.appendChild(el('div','empty','該当するダンサーが見つかりません'));
+    demoState();
+  }
+
+  // ---------- フォロー(§4フロー) ----------
+  function onFollowTap(type,id){
+    const set = type==='company' ? state.companyFollows : state.follows;
+    if(set.has(id)){ set.delete(id); renderSections(); toast('フォローを解除しました'); return; }
+    if(!state.loggedIn){
+      // 遅延ログイン: 操作を保持して S9(モック)へ
+      state.pendingFollow={type,id};
+      $('#l_friend').checked=true;
+      $('#loverlay').hidden=false;
+      return;
+    }
+    completeFollow(type,id);
+  }
+  function completeFollow(type,id){
+    (type==='company' ? state.companyFollows : state.follows).add(id);
+    renderSections();
+    if(type==='dancer'){
+      const row=$('#row-'+id);
+      if(row){ row.scrollIntoView({behavior:'smooth',block:'center'}); row.classList.remove('hl'); void row.offsetWidth; row.classList.add('hl'); }
+    }
+    const label = type==='company' ? '団体をフォローしました' : 'フォローしました';
+    if(state.friend){
+      if(!state.firstFollowToastDone){ toast('LINEに通知が届きます'); state.firstFollowToastDone=true; }
+      else toast(label);
+      $('#fbanner').classList.remove('show');
+    }else{
+      toast(label+'(通知には友だち追加が必要です)');
+      $('#fbanner').classList.add('show');
+    }
+  }
+
+  // ---------- S9 LINEログイン(モック) ----------
+  $('#l_ok').addEventListener('click',()=>{
+    state.loggedIn=true;
+    state.friend=$('#l_friend').checked;   // aggressive でもチェックは外せる
+    $('#loverlay').hidden=true;
+    const pf=state.pendingFollow; state.pendingFollow=null;
+    if(pf) completeFollow(pf.type,pf.id);  // redirect_to の操作を自動再実行
+  });
+  $('#l_cancel').addEventListener('click',()=>{
+    state.pendingFollow=null;
+    $('#loverlay').hidden=true;
+    toast('ログインをキャンセルしました(フォローは未実行)');
+  });
+
+  // ---------- 友だち追加バナー ----------
+  $('#fb_add').addEventListener('click',()=>{
+    state.friend=true;                     // 実装では webhook(follow)で is_line_friend=true
+    $('#fbanner').classList.remove('show');
+    toast('友だち追加しました。LINEに通知が届きます');
+    demoState();
+  });
+  $('#fb_close').addEventListener('click',()=>$('#fbanner').classList.remove('show'));
+
+  // ---------- 検索 ----------
+  $('#q').addEventListener('input',e=>{ state.filter=e.target.value; renderSections(); });
+
+  // ---------- デモ操作 ----------
+  $('#demo_reset').addEventListener('click',()=>{
+    state.loggedIn=false; state.friend=false; state.follows.clear(); state.companyFollows.clear();
+    state.firstFollowToastDone=false; state.pendingFollow=null; state.filter='';
+    $('#q').value=''; $('#fbanner').classList.remove('show');
+    renderSections(); toast('状態をリセットしました');
+  });
+  $('#demo_focus').addEventListener('click',()=>{
+    // S3のキャスト名タップ → /dancers?focus=d1 相当
+    const row=$('#row-d1');
+    if(row){ row.scrollIntoView({behavior:'smooth',block:'center'}); row.classList.remove('hl'); void row.offsetWidth; row.classList.add('hl'); }
+  });
+
+  renderSections();
+})();
+</script>
+</body>
+</html>
