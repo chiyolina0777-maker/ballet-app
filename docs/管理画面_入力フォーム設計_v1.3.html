@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Balletin Japan 管理画面 入力フォーム設計 v1.3</title>
+<style>
+:root{
+  --berry:#6D2E46;
+  --berry-dark:#4E1F32;
+  --berry-tint:#F6EFF2;
+  --ink:#2A2126;
+  --muted:#7A6E74;
+  --line:#E3DADE;
+  --paper:#FCFAFB;
+  /* v1.3で追加: 非公開情報を示す色。エラー(赤)とは明確に分ける */
+  --embargo:#7A5A15;
+  --embargo-bg:#FBF4DE;
+  --embargo-line:#E0CE96;
+  --danger:#A3282C;
+  --danger-bg:#FBEFEF;
+  --ok:#2F6B4F;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; padding:0 0 80px;
+  font-family:"Yu Gothic","游ゴシック体",YuGothic,"Hiragino Sans","Noto Sans JP",sans-serif;
+  font-weight:500;
+  color:var(--ink); background:var(--paper);
+  line-height:1.7; font-size:14px;
+}
+code,.mono,input[type="datetime-local"],input[type="date"]{
+  font-family:"SFMono-Regular",Consolas,"Yu Gothic",monospace;
+  font-feature-settings:"tnum";
+}
+header{
+  background:var(--berry); color:#fff;
+  padding:22px 32px;
+}
+header h1{margin:0; font-size:19px; letter-spacing:.04em; font-weight:600}
+header p{margin:6px 0 0; font-size:12.5px; opacity:.82}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+section{margin-top:36px}
+h2{
+  font-size:15px; margin:0 0 4px; color:var(--berry-dark);
+  border-left:4px solid var(--berry); padding-left:10px; letter-spacing:.03em;
+}
+h2 .num{font-size:11.5px; color:var(--muted); margin-right:8px; letter-spacing:.12em}
+.lead{margin:0 0 16px 14px; font-size:12.5px; color:var(--muted)}
+.card{
+  background:#fff; border:1px solid var(--line); border-radius:6px;
+  padding:22px 24px; box-shadow:0 1px 2px rgba(42,33,38,.04);
+}
+.grid{display:grid; gap:16px 20px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:1fr 1fr 1fr}
+@media(max-width:720px){.g2,.g3{grid-template-columns:1fr}}
+label{display:block; font-size:12px; color:var(--muted); margin-bottom:5px; letter-spacing:.02em}
+label .req{color:var(--danger); margin-left:4px; font-size:11px}
+input[type="text"],input[type="number"],input[type="datetime-local"],input[type="date"],select,textarea{
+  width:100%; padding:8px 10px; font-size:13.5px;
+  border:1px solid var(--line); border-radius:4px; background:#fff;
+  font-family:inherit; color:var(--ink);
+}
+textarea{min-height:64px; resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--berry); outline-offset:1px; border-color:var(--berry)}
+.hint{font-size:11.5px; color:var(--muted); margin-top:5px; line-height:1.6}
+table{width:100%; border-collapse:collapse; font-size:12.5px}
+th,td{border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top}
+th{background:var(--berry-tint); color:var(--berry-dark); font-weight:600; font-size:11.5px; white-space:nowrap}
+td input,td select{padding:5px 7px; font-size:12.5px}
+.tabs{display:flex; gap:3px; margin-bottom:-1px; flex-wrap:wrap}
+.tab{
+  padding:7px 15px; font-size:12.5px; border:1px solid var(--line);
+  border-bottom:none; border-radius:5px 5px 0 0; background:#F3EDEF;
+  color:var(--muted); cursor:pointer;
+}
+.tab[aria-selected="true"]{background:#fff; color:var(--berry-dark); font-weight:600; box-shadow:inset 0 3px 0 var(--berry)}
+.tabbody{border:1px solid var(--line); border-radius:0 6px 6px 6px; background:#fff; padding:22px 24px}
+.tab-add{background:transparent; border-style:dashed; color:var(--berry)}
+
+/* --- v1.3 の要: 非公開情報ゾーン --------------------------------
+   斜線ハッチで「この枠内の情報は外に出ない」ことを一目で示す。
+   赤(エラー)ではなく琥珀系にすることで「間違い」ではなく「封緘」を表す。 */
+.embargo{
+  border:1px solid var(--embargo-line); border-radius:6px;
+  background-color:var(--embargo-bg);
+  background-image:repeating-linear-gradient(135deg,
+    rgba(122,90,21,.055) 0 8px, transparent 8px 16px);
+  padding:16px 18px; margin-top:14px;
+}
+.embargo-head{
+  display:flex; align-items:center; gap:8px;
+  font-size:12.5px; font-weight:600; color:var(--embargo); margin-bottom:8px;
+}
+.embargo-head::before{content:"■"; font-size:9px}
+.embargo p{margin:0; font-size:12px; color:var(--embargo); line-height:1.7}
+.embargo ul{margin:8px 0 0; padding-left:18px; font-size:12px; color:var(--embargo)}
+
+.badge{
+  display:inline-block; padding:1px 8px; border-radius:10px;
+  font-size:11px; font-weight:600; letter-spacing:.03em; white-space:nowrap;
+}
+.b-tbd{background:#EFEBEC; color:var(--muted)}
+.b-member{background:var(--embargo-bg); color:var(--embargo); border:1px solid var(--embargo-line)}
+.b-pub{background:#E8F1EC; color:var(--ok)}
+.b-final{background:var(--berry); color:#fff}
+
+.monitor{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+@media(max-width:720px){.monitor{grid-template-columns:1fr}}
+.metric{
+  background:#fff; border:1px solid var(--line); border-radius:6px; padding:15px 17px;
+}
+.metric.alarm{border-color:var(--danger); background:var(--danger-bg)}
+.metric .k{font-size:11.5px; color:var(--muted); letter-spacing:.02em}
+.metric .v{font-size:27px; font-weight:600; line-height:1.25; margin-top:3px; color:var(--berry-dark)}
+.metric.alarm .v{color:var(--danger)}
+.metric .n{font-size:11px; color:var(--muted); margin-top:3px}
+
+.notice{
+  border-left:3px solid var(--berry); background:var(--berry-tint);
+  padding:12px 16px; font-size:12.5px; border-radius:0 4px 4px 0;
+}
+.notice.warn{border-color:var(--embargo); background:var(--embargo-bg); color:var(--embargo)}
+.notice.stop{border-color:var(--danger); background:var(--danger-bg); color:var(--danger)}
+.notice strong{display:block; margin-bottom:3px}
+
+.preview{border:1px solid var(--berry); border-radius:6px; overflow:hidden; margin-top:8px}
+.preview-head{background:var(--berry); color:#fff; padding:9px 16px; font-size:12.5px; font-weight:600}
+.preview-body{padding:16px 18px; background:#fff}
+.msg{
+  background:#F3EDEF; border-radius:12px 12px 12px 3px; padding:13px 16px;
+  font-size:13px; white-space:pre-wrap; line-height:1.85; max-width:460px;
+}
+.actions{display:flex; gap:10px; margin-top:22px; flex-wrap:wrap; align-items:center}
+button{
+  font-family:inherit; font-size:13px; font-weight:600; padding:9px 20px;
+  border-radius:4px; cursor:pointer; border:1px solid var(--berry);
+}
+.btn-primary{background:var(--berry); color:#fff}
+.btn-primary:hover{background:var(--berry-dark)}
+.btn-ghost{background:#fff; color:var(--berry)}
+.btn-primary:disabled{background:#C4B3BA; border-color:#C4B3BA; cursor:not-allowed}
+.check{display:flex; gap:8px; align-items:flex-start; font-size:12.5px; color:var(--ink)}
+.check input{margin-top:3px}
+.row-note{font-size:11.5px; color:var(--muted); margin-top:10px}
+.legend{display:flex; gap:16px; flex-wrap:wrap; font-size:11.5px; color:var(--muted); margin-top:12px}
+.hidden{display:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>Balletin Japan ／ 管理画面 入力フォーム設計</h1>
+    <p>v1.3 ・ 2026-08-14 ・ 対応スキーマ migration_v1.3.sql</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">D</span>ダッシュボード監視バンド</h2>
+  <p class="lead">全画面の最上部に常時表示する。左端の値が 0 でないときは通知送信を止める。</p>
+  <div class="monitor">
+    <div class="metric alarm">
+      <div class="k">公開されている非公開キャスト</div>
+      <div class="v">0</div>
+      <div class="n">qa_leaked_member_only_casts ／ 常に0であること</div>
+    </div>
+    <div class="metric">
+      <div class="k">解禁待ちのキャスト</div>
+      <div class="v">14</div>
+      <div class="n">pending_cast_releases ／ 会員限定発表ぶん</div>
+    </div>
+    <div class="metric">
+      <div class="k">7日以内の締切</div>
+      <div class="v">6</div>
+      <div class="n">申込締切・入金締切・当落発表</div>
+    </div>
+  </div>
+  <div class="notice stop" style="margin-top:14px">
+    <strong>1件でも検出したら</strong>
+    通知送信を停止し、該当レコードの status と publish_not_before を確認する。原因が判明するまで再開しない。
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">A1</span>公演の基本情報</h2>
+  <p class="lead">ツアー公演は会場ごとにタブを分ける。料金・発売段階・席種は会場タブの中に持つ。</p>
+  <div class="card">
+    <div class="grid g2">
+      <div>
+        <label>公演名<span class="req">必須</span></label>
+        <input type="text" value="街の灯 ＜新国立劇場バレエ団委嘱作品・世界初演＞">
+      </div>
+      <div>
+        <label>バレエ団<span class="req">必須</span></label>
+        <select>
+          <option>新国立劇場バレエ団</option>
+          <option>東京バレエ団</option>
+          <option>Kバレエ トウキョウ</option>
+        </select>
+        <div class="hint">選択した団体に定義済みの発売段階だけが A3 で選べる。</div>
+      </div>
+      <div>
+        <label>演目（works）</label>
+        <input type="text" value="街の灯">
+        <div class="hint">ガラ・トリプルビルは複数登録する。キャストは演目ごとに紐づく。</div>
+      </div>
+      <div>
+        <label>公演期間</label>
+        <div style="display:flex; gap:8px; align-items:center">
+          <input type="date" value="2026-10-23"><span style="color:var(--muted)">〜</span><input type="date" value="2026-11-01">
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g2" style="margin-top:18px">
+      <div>
+        <label>シード権の対象公演</label>
+        <div class="check"><input type="checkbox" id="seed" checked><label for="seed" style="margin:0; color:var(--ink)">この公演の購入実績が翌シーズンの申込優遇に加算される</label></div>
+      </div>
+      <div>
+        <label>シード権の表記</label>
+        <input type="text" value="2027/2028シーズン バレエ＆ダンス 郵送申込シード権">
+        <div class="hint">通知本文と公演詳細に1行として差し込む。</div>
+      </div>
+    </div>
+
+    <div style="margin-top:26px">
+      <div class="tabs">
+        <div class="tab" role="tab" aria-selected="true">［東京］新国立劇場 オペラパレス</div>
+        <div class="tab tab-add" role="tab">＋ 会場を追加</div>
+      </div>
+      <div class="tabbody">
+        <div class="grid g3">
+          <div>
+            <label>会場<span class="req">必須</span></label>
+            <input type="text" value="新国立劇場 オペラパレス">
+          </div>
+          <div>
+            <label>都市ラベル</label>
+            <input type="text" value="［東京］">
+            <div class="hint">公式サイトの原文表記をそのまま入れる。</div>
+          </div>
+          <div>
+            <label>主催</label>
+            <input type="text" value="新国立劇場">
+            <div class="hint">ツアーでは都市ごとに変わる（例：TBS）。</div>
+          </div>
+        </div>
+        <div class="row-note">この会場の公演回・席種・発売段階は、以下 A2／A3 でこのタブに紐づけて登録する。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">A2</span>席種</h2>
+  <p class="lead">会員割引は席種の属性として持つ。独立した発売日を持つ割引席種は A3 の段階に紐づける。</p>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:110px">席種名</th><th style="width:88px">一般</th><th style="width:88px">会員価格</th>
+          <th style="width:130px">会員組織</th><th style="width:52px">割引</th>
+          <th>利用条件</th><th style="width:150px">購入窓口の制約</th><th style="width:140px">発売段階</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><input type="text" value="S"></td><td><input type="number" value="17600"></td><td><input type="number" value="15840"></td>
+          <td><select><option>クラブ・ジ・アトレ</option><option>—</option></select></td>
+          <td style="text-align:center"><input type="checkbox"></td>
+          <td><input type="text" placeholder="—"></td><td><input type="text" placeholder="—"></td>
+          <td><select><option>（一般発売に従う）</option></select></td></tr>
+        <tr><td><input type="text" value="D"></td><td><input type="number" value="6600"></td><td><input type="number" placeholder="対象外"></td>
+          <td><select><option>—</option></select></td>
+          <td style="text-align:center"><input type="checkbox"></td>
+          <td><input type="text" placeholder="—"></td><td><input type="text" placeholder="—"></td>
+          <td><select><option>（一般発売に従う）</option></select></td></tr>
+        <tr><td><input type="text" value="Z席"></td><td><input type="number" value="1980"></td><td><input type="number" placeholder="対象外"></td>
+          <td><select><option>—</option></select></td>
+          <td style="text-align:center"><input type="checkbox" checked></td>
+          <td><input type="text" value="舞台のほとんどが見えない／1人1枚"></td>
+          <td><input type="text" value="Webボックスオフィス・セブン端末"></td>
+          <td><select><option>当日先着（公演回ごと）</option></select></td></tr>
+      </tbody>
+    </table>
+    <div class="hint" style="margin-top:10px">
+      特典が公演回ごとに変わる席種（例：Kバレエ K-BALLET SELECTION席）は、現状は備考に文章で持つ。
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">A3</span>発売段階</h2>
+  <p class="lead">締切は1つとは限らない。抽選では申込締切・当落発表・入金締切の3つがすべて通知対象になる。</p>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:132px">段階</th><th style="width:74px">方式</th><th style="width:128px">会員組織</th>
+          <th style="width:150px">開始</th><th style="width:150px">申込締切</th>
+          <th style="width:150px">当落発表</th><th style="width:150px">入金締切</th>
+          <th style="width:56px">公開可</th><th style="width:44px">順序</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><select><option>s1 郵送申込（シード権優先）</option></select></td>
+          <td><select><option>抽選</option><option>先着</option></select></td>
+          <td><select><option>—</option></select></td>
+          <td><input type="datetime-local" value="2026-06-20T00:00"></td>
+          <td><input type="datetime-local" value="2026-07-06T23:59"></td>
+          <td><input type="datetime-local" value="2026-07-24T00:00"></td>
+          <td><input type="datetime-local" value="2026-07-31T23:59"></td>
+          <td style="text-align:center"><input type="checkbox" checked></td>
+          <td><input type="number" value="1"></td>
+        </tr>
+        <tr>
+          <td><select><option>s2 アトレ会員先行</option></select></td>
+          <td><select><option>先着</option></select></td>
+          <td><select><option>クラブ・ジ・アトレ</option></select></td>
+          <td><input type="datetime-local" value="2026-08-01T10:00"></td>
+          <td><input type="datetime-local" value="2026-08-10T23:59"></td>
+          <td><input type="datetime-local" placeholder="—"></td>
+          <td><input type="datetime-local" placeholder="—"></td>
+          <td style="text-align:center"><input type="checkbox" checked></td>
+          <td><input type="number" value="2"></td>
+        </tr>
+        <tr>
+          <td><select><option>s3 新国メンバーズ先行</option></select></td>
+          <td><select><option>先着</option></select></td>
+          <td><select><option>新国メンバーズ（無料）</option></select></td>
+          <td><input type="datetime-local" value="2026-08-02T10:00"></td>
+          <td><input type="datetime-local" value="2026-08-10T23:59"></td>
+          <td><input type="datetime-local" placeholder="—"></td>
+          <td><input type="datetime-local" placeholder="—"></td>
+          <td style="text-align:center"><input type="checkbox" checked></td>
+          <td><input type="number" value="3"></td>
+        </tr>
+        <tr>
+          <td><select><option>s4 一般発売</option></select></td>
+          <td><select><option>先着</option></select></td>
+          <td><select><option>—</option></select></td>
+          <td><input type="datetime-local" value="2026-08-16T10:00"></td>
+          <td><input type="datetime-local" placeholder="—"></td>
+          <td><input type="datetime-local" placeholder="—"></td>
+          <td><input type="datetime-local" placeholder="—"></td>
+          <td style="text-align:center"><input type="checkbox" checked></td>
+          <td><input type="number" value="4"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="grid g2" style="margin-top:18px">
+      <div>
+        <label>情報の出所<span class="req">必須</span></label>
+        <select>
+          <option>公開ページ</option>
+          <option>会員サイト</option>
+          <option>会員向けメール</option>
+          <option>プレスリリース</option>
+          <option>手入力（電話確認など）</option>
+        </select>
+        <div class="hint">後から「これは公開情報だったか」を検証するために必ず記録する。</div>
+      </div>
+      <div>
+        <label>出所の補足</label>
+        <input type="text" value="https://www.nntt.jac.go.jp/ballet/citylights/">
+      </div>
+    </div>
+
+    <div class="notice warn" style="margin-top:16px">
+      <strong>締切に時刻の記載がないとき</strong>
+      公式表記が「8月10日（月）まで」のように日付のみの場合は 23:59 で保存する。通知は前日と当日朝の2回。
+      画面表示では時刻を伏せ、正確な時刻は公式サイトを案内する。
+    </div>
+
+    <div class="hint" style="margin-top:12px">
+      段階の並び順は日時と独立。NBSでは割引枠（U25シート）が一般発売の約1.5か月<strong>後</strong>に開くため、
+      段階番号を時系列とみなす実装にしないこと。
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">A4</span>キャスト</h2>
+  <p class="lead">会員限定で発表されたキャストは、通知にも画面にも一切出さない。状態の選択がそのゲートになる。</p>
+  <div class="card">
+    <div class="grid g3">
+      <div>
+        <label>公演回<span class="req">必須</span></label>
+        <select><option>2026年10月23日(金) 19:00</option></select>
+      </div>
+      <div>
+        <label>演目</label>
+        <select><option>街の灯</option></select>
+      </div>
+      <div>
+        <label>キャスト情報の基準日</label>
+        <input type="date" value="2026-06-17">
+        <div class="hint">「掲載キャスト予定は○月○日現在」の日付。画面に脚注表示する。</div>
+      </div>
+    </div>
+
+    <table style="margin-top:18px">
+      <thead><tr><th style="width:200px">役</th><th>ダンサー</th><th style="width:150px">団体</th></tr></thead>
+      <tbody>
+        <tr><td><input type="text" value="放浪者（トランプ）"></td><td><input type="text" value="奥村康祐"></td><td><select><option>新国立劇場バレエ団</option></select></td></tr>
+        <tr><td><input type="text" value="盲目の花売り娘"></td><td><input type="text" value="米沢 唯"></td><td><select><option>新国立劇場バレエ団</option></select></td></tr>
+      </tbody>
+    </table>
+    <div class="hint" style="margin-top:8px">
+      ゲスト出演者は団体欄で「ゲスト」を選び、所属を文字列で入力する（例：パリ・オペラ座バレエ エトワール）。
+    </div>
+
+    <div class="grid g3" style="margin-top:22px">
+      <div>
+        <label>公開状態<span class="req">必須</span></label>
+        <select id="castStatus">
+          <option value="tbd">未発表（誰も知らない）</option>
+          <option value="member_only">会員限定で発表済み</option>
+          <option value="announced" selected>一般公開済み</option>
+          <option value="final">当日確定</option>
+        </select>
+      </div>
+      <div>
+        <label>公開解禁の日時</label>
+        <input type="datetime-local" id="releaseAt" placeholder="未定なら空欄">
+        <div class="hint">空欄のままでも可。公開を確認した時点で状態を手動で変更する。</div>
+      </div>
+      <div>
+        <label>情報の出所<span class="req">必須</span></label>
+        <select id="castSource">
+          <option>公開ページ</option>
+          <option>会員サイト</option>
+          <option>会員向けメール</option>
+          <option>プレスリリース</option>
+          <option>手入力</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 状態が member_only / tbd のとき表示される封緘ゾーン -->
+    <div class="embargo hidden" id="embargoBox">
+      <div class="embargo-head">この情報は公開されません</div>
+      <p>保存はされますが、以下のすべてに出力されません。解禁を確認してから状態を「一般公開済み」に変更してください。</p>
+      <ul>
+        <li>LINE通知の本文</li>
+        <li>公演詳細・日別キャスト一覧・ダンサー詳細</li>
+        <li>検索インデックス、OGP、構造化データ</li>
+      </ul>
+    </div>
+
+    <div class="legend">
+      <span><span class="badge b-tbd">未発表</span> 誰も知らない</span>
+      <span><span class="badge b-member">会員限定</span> 出せない</span>
+      <span><span class="badge b-pub">公開済み</span> 出力可</span>
+      <span><span class="badge b-final">当日確定</span> 出力可</span>
+    </div>
+
+    <div class="notice" style="margin-top:16px">
+      <strong>公演詳細での見え方</strong>
+      未公開のキャストは「キャスト未発表」とだけ表示する。会員限定で発表済みであることは示唆しない。
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">B</span>通知プレビューと送信</h2>
+  <p class="lead">送信前に必ず宛先数と本文を確認する。プレビューを開かずに送信ボタンは押せない。</p>
+  <div class="card">
+
+    <div class="preview">
+      <div class="preview-head">通知プレビュー ／ s2 アトレ会員先行・申込締切リマインド</div>
+      <div class="preview-body">
+        <div class="msg">【明日締切】街の灯／新国立劇場バレエ団
+
+アトレ会員先行の申込は 8月10日(月) までです。
+
+会場：新国立劇場 オペラパレス
+公演期間：10月23日(金)〜11月1日(日)
+
+※この公演は 2027/2028シーズン 郵送申込シード権の対象です。</div>
+        <div class="hint" style="margin-top:12px">
+          この段階は会員先行のため、キャスト情報は本文に含めない。ダンサー名を出せるのは公開済みキャストのみ。
+        </div>
+
+        <table style="margin-top:16px">
+          <thead><tr><th>宛先の区分</th><th style="width:100px">人数</th><th>備考</th></tr></thead>
+          <tbody>
+            <tr><td>バレエ団フォロワー ＆ アトレ会員</td><td>1,204</td><td>通知対象</td></tr>
+            <tr><td>ダンサーフォロワー ＆ アトレ会員（重複除外後）</td><td>318</td><td>通知対象</td></tr>
+            <tr><td>バレエ団フォロワー（アトレ非会員）</td><td>2,867</td><td>送信しない／詳細画面に入会導線を表示</td></tr>
+            <tr style="background:var(--berry-tint)"><td><strong>送信合計</strong></td><td><strong>1,522</strong></td><td>重複除外済み</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="margin-top:22px; display:grid; gap:10px">
+      <div class="check"><input type="checkbox" class="confirm"><span>宛先の人数と区分を確認した</span></div>
+      <div class="check"><input type="checkbox" class="confirm"><span>本文に会員限定のキャスト情報が含まれていないことを確認した</span></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-ghost">下書きとして保存</button>
+      <button class="btn-primary" id="sendBtn" disabled>1,522件に送信</button>
+      <span class="hint" id="sendHint" style="margin:0">2つの確認にチェックを入れると送信できます。</span>
+    </div>
+
+    <div class="notice stop" style="margin-top:18px">
+      <strong>送信できない条件</strong>
+      監視バンドの「公開されている非公開キャスト」が1件以上のとき、送信ボタンは常に無効になる。
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">C</span>CSV取り込み</h2>
+  <p class="lead">v1.1 からの原則を維持する。取り込みは常に下書き。通知とは完全に分離する。</p>
+  <div class="card">
+    <div class="notice">
+      <strong>取り込み後の状態</strong>
+      キャストは既定で「未発表」として取り込む。公開状態は取り込み後に人が確認して変更する。
+      CSV に status 列がある場合も、「一般公開済み」への自動設定は行わない。
+    </div>
+    <div class="hint" style="margin-top:14px">
+      日付の整合チェックを取り込み時に行う。公式サイト側の入力誤りが一定の割合で混入するため
+      （新国立のニュース一覧で公開日と本文の年が食い違う例を確認済み）、
+      公演期間と発売日の前後関係、年の妥当性を検査して警告を出す。
+    </div>
+  </div>
+</section>
+
+</div>
+
+<script>
+// 公開状態に応じて封緘ゾーンを出し分ける
+(function(){
+  var sel = document.getElementById('castStatus');
+  var box = document.getElementById('embargoBox');
+  function sync(){
+    var hidden = (sel.value === 'member_only' || sel.value === 'tbd');
+    box.classList.toggle('hidden', !hidden);
+  }
+  sel.addEventListener('change', sync);
+  sync();
+})();
+
+// 二段確認: 両方にチェックが入るまで送信不可
+(function(){
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('.confirm'));
+  var btn = document.getElementById('sendBtn');
+  var hint = document.getElementById('sendHint');
+  function sync(){
+    var ok = boxes.every(function(b){ return b.checked; });
+    btn.disabled = !ok;
+    hint.textContent = ok ? '送信すると取り消せません。' : '2つの確認にチェックを入れると送信できます。';
+  }
+  boxes.forEach(function(b){ b.addEventListener('change', sync); });
+  sync();
+})();
+
+// タブ切り替え（会場）
+(function(){
+  var tabs = document.querySelectorAll('.tab[role="tab"]:not(.tab-add)');
+  tabs.forEach(function(t){
+    t.addEventListener('click', function(){
+      tabs.forEach(function(x){ x.setAttribute('aria-selected','false'); });
+      t.setAttribute('aria-selected','true');
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
