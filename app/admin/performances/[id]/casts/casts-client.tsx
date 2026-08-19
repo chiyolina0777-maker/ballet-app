@@ -10,6 +10,23 @@ const fmt = (iso: string) => {
 };
 
 type Row = { dancer_id: string; role_name: string; status: string };
+type Pub = { publication_status: string; publish_not_before: string; source_type: string; as_of: string };
+
+// v1.3(追補§2): 公開状態。tbd/member_only は一切出力されない。is_published はDBが自動導出
+const PUB_LABEL: Record<string, string> = {
+  tbd: '未発表(下書き)',
+  member_only: '会員限定発表(公開不可)',
+  announced: '一般公開',
+  final: '当日確定',
+};
+const SOURCE_LABEL: Record<string, string> = {
+  public_page: '公開ページ',
+  member_site: '会員サイト',
+  member_email: '会員メール',
+  press: 'プレス',
+  manual: '手入力',
+  other: 'その他',
+};
 
 export default function CastsClient({ performance, shows, dancers }: { performance: any; shows: any[]; dancers: any[] }) {
   const router = useRouter();
@@ -22,6 +39,19 @@ export default function CastsClient({ performance, shows, dancers }: { performan
     }
     return m;
   });
+  const [pubByShow, setPubByShow] = useState<Record<string, Pub>>(() => {
+    const m: Record<string, Pub> = {};
+    for (const s of shows) {
+      const c = (s.casts ?? [])[0];
+      m[s.id] = {
+        publication_status: c?.publication_status ?? 'tbd',
+        publish_not_before: c?.publish_not_before ? String(c.publish_not_before).slice(0, 16) : '',
+        source_type: c?.source_type ?? 'public_page',
+        as_of: c?.as_of ?? '',
+      };
+    }
+    return m;
+  });
   const [sourceUrl, setSourceUrl] = useState(shows[0]?.casts?.[0]?.source_url ?? '');
   const [followerCount, setFollowerCount] = useState<number | null>(null);
   const [msg, setMsg] = useState('');
@@ -30,6 +60,15 @@ export default function CastsClient({ performance, shows, dancers }: { performan
   const show = shows[active];
   const rows = rowsByShow[show.id] ?? [];
   const setRows = (r: Row[]) => setRowsByShow({ ...rowsByShow, [show.id]: r });
+  const pub = pubByShow[show.id];
+  const setPub = (p: Partial<Pub>) => setPubByShow({ ...pubByShow, [show.id]: { ...pub, ...p } });
+
+  const willPublishNow =
+    (pub.publication_status === 'announced' || pub.publication_status === 'final') &&
+    (!pub.publish_not_before || new Date(pub.publish_not_before) <= new Date());
+  const willSchedule =
+    (pub.publication_status === 'announced' || pub.publication_status === 'final') &&
+    !!pub.publish_not_before && new Date(pub.publish_not_before) > new Date();
 
   const activeDancerIds = useMemo(
     () => [...new Set(rows.filter((r) => r.dancer_id && r.status !== 'cancelled').map((r) => r.dancer_id))],
@@ -67,12 +106,12 @@ export default function CastsClient({ performance, shows, dancers }: { performan
     setRows(rows.map((r, i) => (i === rowIdx ? { ...r, dancer_id: id } : r)));
   }
 
-  async function save(publish: boolean) {
+  async function save() {
     setMsg('');
-    if (publish) {
+    if (willPublishNow) {
       const n = followerCount ?? 0;
       const ok = window.confirm(
-        `【二段確認】この内容で公開し、通知キューに登録します。\n対象: フォロワー ${n}人(重複除外済み)\n送信は次回バッチ(9:00/18:00)。登録後の取り消しはできません。`
+        `【二段確認】この内容で一般公開し、通知キューに登録します。\n対象: フォロワー ${n}人(重複除外済み)\n送信は次回バッチ(9:00/18:00)。登録後の取り消しはできません。`
       );
       if (!ok) return;
     }
@@ -84,14 +123,20 @@ export default function CastsClient({ performance, shows, dancers }: { performan
         show_id: show.id,
         performance_id: performance.id,
         source_url: sourceUrl,
-        publish,
+        publication_status: pub.publication_status,
+        publish_not_before: pub.publish_not_before || null,
+        source_type: pub.source_type,
+        as_of: pub.as_of || null,
         casts: rows,
       }),
     });
     setSaving(false);
     const j = await res.json();
     if (!res.ok) { setMsg(j.error ?? '保存に失敗しました'); return; }
-    setMsg(publish ? (j.queued ? '公開し、通知キューに登録しました(次回バッチで送信)' : `公開しました。${j.queueError ?? ''}`) : '下書き保存しました(通知なし・公演ページ非表示)');
+    if (j.published) setMsg(j.queued ? '公開し、通知キューに登録しました(次回バッチで送信)' : `公開しました。${j.queueError ?? ''}`);
+    else if (j.scheduled) setMsg('保存しました。解禁日時の経過後、バッチが自動で公開・通知します');
+    else if (pub.publication_status === 'member_only') setMsg('会員限定情報として保存しました(画面・通知には一切出ません)');
+    else setMsg('未発表(下書き)として保存しました(通知なし・公演ページ非表示)');
     router.refresh();
   }
 
@@ -102,12 +147,14 @@ export default function CastsClient({ performance, shows, dancers }: { performan
 
       <div className="tabs">
         {shows.map((s, i) => {
-          const published = (s.casts ?? []).some((c: any) => c.is_published);
-          const hasDraft = (s.casts ?? []).length > 0 && !published;
+          const casts = s.casts ?? [];
+          const published = casts.some((c: any) => c.is_published);
+          const memberOnly = !published && casts.some((c: any) => c.publication_status === 'member_only');
+          const hasDraft = casts.length > 0 && !published && !memberOnly;
           return (
             <button key={s.id} className={`tab${i === active ? ' on' : ''}`} onClick={() => { setActive(i); setMsg(''); }}>
               {fmt(s.starts_at)}
-              {published ? ' ✓公開' : hasDraft ? ' 下書' : ''}
+              {published ? ' ✓公開' : memberOnly ? ' 🔒会員限定' : hasDraft ? ' 下書' : ''}
             </button>
           );
         })}
@@ -145,16 +192,55 @@ export default function CastsClient({ performance, shows, dancers }: { performan
       </table>
       <button className="linklike" onClick={() => setRows([...rows, { dancer_id: '', role_name: '', status: 'scheduled' }])}>+ 役を追加</button>
 
+      <label>公開状態 *(追補§2)</label>
+      <select value={pub.publication_status} onChange={(e) => setPub({ publication_status: e.target.value })}>
+        {Object.entries(PUB_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+      </select>
+      {pub.publication_status === 'member_only' && (
+        <p className="notice" style={{ background: '#fdecea', border: '1px solid #e57373' }}>
+          ⚠️ <strong>会員限定情報</strong>:この内容は画面・通知・検索のいかなる出力面にも公開されません。
+          一般公開を<strong>目視で確認</strong>してから「一般公開」に変更してください(会員限定情報の非公開原則)。
+        </p>
+      )}
+
+      {(pub.publication_status === 'announced' || pub.publication_status === 'final') && (
+        <>
+          <label>解禁日時(任意。指定すると、その時刻経過後のバッチで自動公開・通知)</label>
+          <input type="datetime-local" value={pub.publish_not_before} onChange={(e) => setPub({ publish_not_before: e.target.value })} />
+        </>
+      )}
+
+      <div className="inline-row">
+        <div style={{ flex: 1 }}>
+          <label>出所 *(このキャスト情報をどこで得たか)</label>
+          <select value={pub.source_type} onChange={(e) => setPub({ source_type: e.target.value })}>
+            {Object.entries(SOURCE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </div>
+        <div style={{ flex: 1 }}>
+          <label>基準日(「○月○日現在」の日付。任意)</label>
+          <input type="date" value={pub.as_of} onChange={(e) => setPub({ as_of: e.target.value })} />
+        </div>
+      </div>
+
       <label>出典URL *(空では保存不可)</label>
       <input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://(公式のキャスト発表ページ)" />
 
-      <p className="notice" style={{ marginTop: 12 }}>
-        🔔 この内容で通知すると、フォロワー <strong>{followerCount ?? '…'}人</strong>(重複除外済み)への配信がキューに登録されます。送信は9:00/18:00のバッチ。
-      </p>
+      {willPublishNow && (
+        <p className="notice" style={{ marginTop: 12 }}>
+          🔔 保存すると一般公開され、フォロワー <strong>{followerCount ?? '…'}人</strong>(重複除外済み)への配信がキューに登録されます。送信は9:00/18:00のバッチ。
+        </p>
+      )}
+      {willSchedule && (
+        <p className="notice" style={{ marginTop: 12 }}>
+          ⏱ 解禁日時までは非公開のまま保存されます。時刻経過後のバッチ(9:00/18:00)で自動公開され、フォロワーに通知されます。
+        </p>
+      )}
 
       <div className="inline-row" style={{ marginTop: 8 }}>
-        <button onClick={() => save(false)} disabled={saving}>下書き保存(通知しない)</button>
-        <button className="btn-primary" onClick={() => save(true)} disabled={saving}>保存して通知(キュー登録)</button>
+        <button className="btn-primary" onClick={save} disabled={saving}>
+          {saving ? '保存中...' : willPublishNow ? '保存して公開(通知キュー登録)' : '保存する'}
+        </button>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminFromRequest } from '@/lib/admin';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
-// A2-4: キャストCSV取込の確定。すべて下書き(is_published=false)・通知なし
+// A2-4: キャストCSV取込の確定。すべて下書き(publication_status=tbd → is_published=false)・通知なし(v1.3追補§10-1)
 // 既存キャスト(show_id, dancer_id, role_name 重複)はスキップ
 export async function POST(req: NextRequest) {
   if (!adminFromRequest(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
       dancer_id: r.dancer_id ?? nameToId.get(String(r.new_dancer_name ?? '').trim()),
       role_name: String(r.role_name ?? '').trim(),
       status: 'scheduled',
-      is_published: false,
+      publication_status: 'tbd', // is_published はDBトリガーが false に導出
+      source_type: 'manual',
     }))
     .filter((r) => r.show_id && r.dancer_id && r.role_name);
 

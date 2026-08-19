@@ -12,7 +12,7 @@ export default async function AdminCasts({ params }: { params: Promise<{ id: str
   if (!perf) return <p className="notice">公演が見つかりません</p>;
 
   const [{ data: shows }, { data: dancers }] = await Promise.all([
-    sb.from('shows').select('id,starts_at,casts(dancer_id,role_name,status,is_published,source_url)').eq('performance_id', id).order('starts_at'),
+    sb.from('shows').select('id,starts_at,casts(dancer_id,role_name,status,is_published,source_url,publication_status,publish_not_before,source_type,as_of)').eq('performance_id', id).order('starts_at'),
     sb.from('dancers').select('id,name,name_kana,companies(name)').order('name'),
   ]);
   if (!shows?.length) {

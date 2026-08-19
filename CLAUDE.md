@@ -8,8 +8,8 @@
 
 ## 正となるドキュメント
 
-- 仕様書: `docs/画面遷移・データモデル仕様書.md`(v1.7)— 画面・遷移・通知ルールの正
-- スキーマ: `supabase/migrations/` が正(3本すべて適用済み。`docs/schema_1.sql` は初版のスナップショットで、0002/0003の分は含まない)
+- 仕様書: `docs/画面遷移・データモデル仕様書.md`(v1.7)+ `docs/画面遷移・データモデル仕様書_v1.3追補.md` — 画面・遷移・通知ルールの正
+- スキーマ: `supabase/migrations/` が正(全5本。0001〜0003は適用済み。**0004(v1.3ブリッジ)と0005(JST補正+RLS強化)はユーザーがSQL Editorで適用すること — v1.3アプリコードのデプロイ前に必須**)
 - 画面モック: `docs/` 内のHTML3枚(管理画面 / S3公演詳細 / S4ダンサー一覧)。実装済みだが文言・挙動の参照用
 
 ## アーキテクチャの要点
@@ -18,17 +18,25 @@
 - **書き込みは全てサーバー経由**(service role)。RLSは直接アクセスへの防御層。クライアントからのDB書き込みはしない
 - **管理者判定**: 環境変数 `ADMIN_USER_IDS`(カンマ区切りUUID)。`is_admin`カラムは使わない(仕様書§3)
 - **演目**: `performance_works`(多対多・上演順)。ミックスビル対応。キャスト行への演目紐付けはしない(役名の自由記述「ボレロ: メロディ」で運用)
-- **チケット販売**: `ticket_sales`(公演1:N。会員先行/一般など複数窓口)
+- **チケット販売**: `sale_stages`(v1.3)。5段階モデル(s1〜s5)+先着/抽選(抽選は申込締切・当落・入金締切も通知)。団体ごとに使う段階は `companies.sale_stage_names` テンプレートで制限。`ticket_sales` は非推奨(互換残置、v1.4で削除)
+- **キャスト公開状態**(v1.3の中核): `casts.publication_status`(tbd/member_only/announced/final)。`is_published` はDBトリガーが導出する派生値で直接更新しない。**member_only(会員限定発表)はいかなる出力面にも出さない**(通知・画面・anon API。RLSも is_published=true に制限済み)。`publish_not_before` 経過後はバッチが自動公開+通知
+- **会場**: `performance_venues`(公演×会場。ツアー対応)。`performances.venue_id` は互換残置。席種は `seat_types`(管理UIなし。Supabase Studioで登録)
+- **会員組織**: `membership_orgs` / `user_memberships`(S6で設定)。会員先行通知は加入者+未設定ユーザーに送る(設定済みで非加入なら送らない)
+- **日時の扱い**: DBは timestamptz。書き込みは `+09:00` 付き(`lib/jst.ts` 参照)、表示は必ず `timeZone: 'Asia/Tokyo'` 指定(サーバーはUTC)。datetime-local の生文字列を直接保存しない
 
 ## 通知の設計(壊すと誤配信につながるので注意)
 
-- **全種別バッチ送信**(即時送信はしない)。A2-3の「保存して通知」= `notification_queue` への登録のみ
+- **全種別バッチ送信**(即時送信はしない)。A2-3の「保存」= 実公開時のみ `notification_queue` への登録
 - バッチ: `/api/cron/notify`(CRON_SECRET保護)を Vercel Cron が **UTC 0:00/9:00 = JST 9:00/18:00** に実行
-  - 発売前日の `ticket_sales` を自動キュー投入 → キュー消化 → 宛先計算 → **1ユーザー1通のダイジェスト**でPush
-- 宛先: キャスト系=該当ダンサーのフォロワーのみ / 発売=主催バレエ団フォロワー∪出演ダンサーフォロワー(distinct)
+  1. `release_scheduled_casts()` で解禁時刻経過キャストを公開し、show単位でキュー投入
+  2. 27時間以内の発売トリガー(`upcoming_sale_triggers`: open/close/result/payment_close の4種)を自動キュー投入
+  3. キュー消化 → 宛先計算 → **1ユーザー1通のダイジェスト**でPush
+- 宛先: キャスト系=該当ダンサーのフォロワーのみ / 発売=主催バレエ団フォロワー∪出演ダンサーフォロワー(distinct)。会員先行(s1〜s3で membership_org 指定あり)は加入状況でさらに絞る
 - 送信前フィルタ: `is_line_friend=true` かつ `notify_cast/notify_sale=true`
-- **二重送信防止**: `notifications` のunique制約(挿入できた行にのみ送信)。テストでキュー行を作ったら必ず掃除すること
+- **通知テンプレートは `is_published=true` のキャストのみ参照**(§7.3。publication_status を直接見ない)。発売通知はキャストに触れない(§7.2)
+- **二重送信防止**: `notifications` のunique制約(挿入できた行にのみ送信)。発売系は `(user_id, kind, sale_stage_id)`。テストでキュー行を作ったら必ず掃除すること
 - 友だち状態: `/api/line/webhook`(follow/unfollow)で自動更新
+- **漏洩監視**: `qa_leaked_member_only_casts` は常に0件(管理画面トップに常時表示)。1件でも出たら通知送信を停止して調査
 
 ## 運用ルール
 
@@ -54,7 +62,8 @@
 
 ## 未完了タスク
 
-- 新国立劇場の公演データ入力(公式サイトがbot遮断=403のため自動取得不可。管理画面から手入力)
-- S6の共有用画像生成(年間まとめ)— 仕様にあるが未実装
+- **migration 0004・0005 の適用**(ユーザー作業。v1.3アプリコードをmainにマージ/デプロイする前に必須。順に実行)
+- v1.3のうち未実装: 席種(seat_types)の管理UI(Studioで登録)/ キャスト変更のハッシュ差分検知(§2.5)/ 団体別パーサ(§9)/ 通知の有料無料区分(§7.2、フェーズ1では全員送信と決定済み)
+- S6の共有用画像生成(年間まとめ)— 仕様にあるが未実装(ユーザー判断で保留中)
 - 東京バレエ団ダンサー12名の name_kana / rank が空(正確性優先で未入力。Supabase Studioで補完可)
 - クローズドβ(知人招待)、Supabase Pro移行判断

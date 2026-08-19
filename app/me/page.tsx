@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getSession } from '@/lib/session';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import MembershipsClient from './memberships-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,10 +25,14 @@ export default async function Me() {
   const sb = supabaseAdmin();
   if (!sb) return <p className="notice">サーバー設定エラー</p>;
 
-  const { data } = await sb
-    .from('theater_logs')
-    .select('show_id,seat,memo,shows(id,starts_at,performances(id,title),casts(status,is_published,dancers(id,name)))')
-    .eq('user_id', session.uid);
+  const [{ data }, { data: orgRows }, { data: myOrgs }] = await Promise.all([
+    sb
+      .from('theater_logs')
+      .select('show_id,seat,memo,shows(id,starts_at,performances(id,title),casts(status,is_published,dancers(id,name)))')
+      .eq('user_id', session.uid),
+    sb.from('membership_orgs').select('id,name,is_paid,join_url,sort_order,companies(name)').order('sort_order'),
+    sb.from('user_memberships').select('membership_org_id').eq('user_id', session.uid),
+  ]);
 
   const logs = (data ?? [])
     .map((l: any) => ({ ...l, show: l.shows }))
@@ -79,6 +84,22 @@ export default async function Me() {
           </div>
         </Link>
       ))}
+      {(orgRows ?? []).length > 0 && (
+        <>
+          <div className="section-title">会員組織(通知の設定)</div>
+          <MembershipsClient
+            orgs={(orgRows ?? []).map((o: any) => ({
+              id: o.id,
+              name: o.name,
+              company: o.companies?.name ?? '',
+              is_paid: o.is_paid,
+              join_url: o.join_url,
+            }))}
+            initial={(myOrgs ?? []).map((m: any) => m.membership_org_id)}
+          />
+        </>
+      )}
+
       <p className="hint" style={{ marginTop: 12 }}>
         <a href="/auth/logout">ログアウト</a>
       </p>
