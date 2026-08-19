@@ -18,8 +18,10 @@ export default async function LogEditor({ params }: { params: Promise<{ show_id:
   if (!session) {
     return (
       <p className="notice">
-        観劇の記録にはログインが必要です。{' '}
-        <a href={`/auth/line?redirect_to=/me/logs/${show_id}`}>LINEでログイン</a>
+        観劇の記録にはログインが必要です。
+        <span style={{ display: 'block', marginTop: 10 }}>
+          <a className="btnlink" href={`/auth/line?redirect_to=/me/logs/${show_id}`}>LINEでログイン</a>
+        </span>
       </p>
     );
   }
@@ -39,8 +41,10 @@ export default async function LogEditor({ params }: { params: Promise<{ show_id:
   if (new Date((show as any).starts_at) >= new Date()) {
     return (
       <p className="notice">
-        この回はまだ終演していないため記録できません。{' '}
-        <a href={`/performances/${perf?.id}`}>公演ページへ戻る</a>
+        この回はまだ終演していないため記録できません。
+        <span style={{ display: 'block', marginTop: 10 }}>
+          <a className="btnlink sub" href={`/performances/${perf?.id}`}>公演ページへ戻る</a>
+        </span>
       </p>
     );
   }

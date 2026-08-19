@@ -103,7 +103,7 @@ export default async function PerformanceDetail({ params }: { params: Promise<{ 
                 {pv.ticket_url && (
                   <>
                     {' '}
-                    / <a href={pv.ticket_url} target="_blank" rel="noopener noreferrer">チケット</a>
+                    <a className="btnlink mini sub" href={pv.ticket_url} target="_blank" rel="noopener noreferrer">チケット</a>
                   </>
                 )}
               </div>
@@ -148,11 +148,9 @@ export default async function PerformanceDetail({ params }: { params: Promise<{ 
                 <>
                   <br />
                   <span style={{ color: 'var(--muted)' }}>
-                    {org.name}の会員先行です
+                    {org.name}の会員先行です{' '}
                     {org.join_url && (
-                      <>
-                        (<a href={org.join_url} target="_blank" rel="noopener noreferrer">入会はこちら</a>)
-                      </>
+                      <a className="btnlink mini sub" href={org.join_url} target="_blank" rel="noopener noreferrer">入会はこちら</a>
                     )}
                   </span>
                 </>
@@ -161,8 +159,8 @@ export default async function PerformanceDetail({ params }: { params: Promise<{ 
           );
         })}
         {p.ticket_url && (
-          <p style={{ marginTop: 8 }}>
-            <a href={`/go/${p.id}?src=web`}>チケットを購入</a>
+          <p style={{ marginTop: 10 }}>
+            <a className="btnlink" href={`/go/${p.id}?src=web`}>チケットを購入</a>
           </p>
         )}
       </div>
@@ -234,7 +232,7 @@ export default async function PerformanceDetail({ params }: { params: Promise<{ 
                 {casts.map((c: any, i: number) => (
                   <span key={i}>
                     <span className="role">{c.role_name}:</span>{' '}
-                    {c.dancers?.id ? <a href={`/dancers?focus=${c.dancers.id}`}>{c.dancers.name}</a> : c.dancers?.name ?? '—'}
+                    {c.dancers?.id ? <a className="pill" href={`/dancers?focus=${c.dancers.id}`}>{c.dancers.name}</a> : c.dancers?.name ?? '—'}
                     {c.status === 'changed' && <span className="badge warn">変更</span>}
                     {c.status === 'cancelled' && <span className="badge warn">降板</span>}
                     {'　'}
@@ -244,7 +242,7 @@ export default async function PerformanceDetail({ params }: { params: Promise<{ 
             )}
             {sh.starts_at < now && (
               <div style={{ marginTop: 6 }}>
-                <a href={`/me/logs/${sh.id}`} style={{ fontSize: 12 }}>観劇を記録</a>
+                <a className="btnlink mini sub" href={`/me/logs/${sh.id}`}>観劇を記録</a>
               </div>
             )}
           </div>
@@ -255,7 +253,7 @@ export default async function PerformanceDetail({ params }: { params: Promise<{ 
         {asOf && <>キャスト情報: {fmtAsOf(asOf)} ― </>}
         {p.source_url && (
           <>
-            出典: <a href={p.source_url}>公式発表</a> ―{' '}
+            <a className="btnlink mini sub" href={p.source_url}>出典(公式発表)</a> ―{' '}
           </>
         )}
         公式発表に基づく。変更の可能性あり。

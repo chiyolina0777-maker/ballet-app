@@ -1,5 +1,5 @@
 import './globals.css';
-import Link from 'next/link';
+import SiteHeader from './site-header';
 
 export const metadata = {
   title: 'バレエ観劇アプリ(仮)',
@@ -10,15 +10,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ja">
       <body>
-        <header className="site-head">
-          <h1>バレエ観劇アプリ(仮)</h1>
-          <nav>
-            <Link href="/">ホーム</Link>
-            <Link href="/performances">公演</Link>
-            <Link href="/dancers">ダンサー</Link>
-            <Link href="/me">マイページ</Link>
-          </nav>
-        </header>
+        <SiteHeader />
         <main>{children}</main>
       </body>
     </html>

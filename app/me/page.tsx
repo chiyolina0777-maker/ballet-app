@@ -17,8 +17,10 @@ export default async function Me() {
   if (!session) {
     return (
       <p className="notice">
-        観劇ログの利用にはログインが必要です。{' '}
-        <a href="/auth/line?redirect_to=/me">LINEでログイン</a>
+        観劇ログの利用にはログインが必要です。
+        <span style={{ display: 'block', marginTop: 10 }}>
+          <a className="btnlink" href="/auth/line?redirect_to=/me">LINEでログイン</a>
+        </span>
       </p>
     );
   }
@@ -100,8 +102,8 @@ export default async function Me() {
         </>
       )}
 
-      <p className="hint" style={{ marginTop: 12 }}>
-        <a href="/auth/logout">ログアウト</a>
+      <p style={{ marginTop: 16 }}>
+        <a className="btnlink mini sub" href="/auth/logout">ログアウト</a>
       </p>
     </>
   );

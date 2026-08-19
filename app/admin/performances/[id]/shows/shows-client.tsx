@@ -11,10 +11,21 @@ const isHoliday = (d: Date) => d.getFullYear() === 2026 && HOLIDAYS.has(`${d.get
 const fmt = (d: Date) =>
   `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]}${isHoliday(d) ? '・祝' : ''}) ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
+type DayTimes = { mat: string; eve: string }; // 昼(マチネ)/夜(ソワレ)。空欄=その枠は公演なし
+
 export default function ShowsClient({ performance, existing }: { performance: any; existing: any[] }) {
   const router = useRouter();
   const [period, setPeriod] = useState('');
-  const [wdTimes, setWdTimes] = useState<Record<string, string>>({ '1': '19:00', '2': '19:00', '3': '19:00', '4': '19:00', '5': '19:00', '6': '18:00', '0': '14:00', hol: '' });
+  const [wdTimes, setWdTimes] = useState<Record<string, DayTimes>>({
+    '1': { mat: '', eve: '19:00' },
+    '2': { mat: '', eve: '19:00' },
+    '3': { mat: '', eve: '19:00' },
+    '4': { mat: '', eve: '19:00' },
+    '5': { mat: '', eve: '19:00' },
+    '6': { mat: '', eve: '18:00' },
+    '0': { mat: '14:00', eve: '' },
+    hol: { mat: '', eve: '' },
+  });
   const [draft, setDraft] = useState<Date[]>([]);
   const [msg, setMsg] = useState('');
   const [saving, setSaving] = useState(false);
@@ -34,9 +45,14 @@ export default function ShowsClient({ performance, existing }: { performance: an
     const out: Date[] = [];
     for (let d = new Date(d0); d <= d1; d.setDate(d.getDate() + 1)) {
       const hol = isHoliday(d);
-      const t = (hol && normTime(wdTimes.hol)) || normTime(wdTimes[String(d.getDay())]);
-      if (!t) continue;
-      out.push(new Date(d.getFullYear(), d.getMonth(), d.getDate(), t[0], t[1]));
+      const holTimes = wdTimes.hol;
+      const useHol = hol && (normTime(holTimes.mat) || normTime(holTimes.eve));
+      const times = useHol ? holTimes : wdTimes[String(d.getDay())];
+      // 昼夜2回公演: 両方に時刻が入っていれば同日2回生成する
+      for (const t of [normTime(times.mat), normTime(times.eve)]) {
+        if (!t) continue;
+        out.push(new Date(d.getFullYear(), d.getMonth(), d.getDate(), t[0], t[1]));
+      }
     }
     if (!out.length) setMsg('この期間・時刻設定では公演回が生成されませんでした');
     setDraft(out);
@@ -89,15 +105,28 @@ export default function ShowsClient({ performance, existing }: { performance: an
       <label>期間(M/D 〜 M/D)</label>
       <input value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="10/11 〜 10/14" />
 
-      <label>曜日別の開演時刻(空欄=その曜日は公演なし。「祝」は曜日設定より優先)</label>
+      <label>曜日別の開演時刻(昼・夜の両方に入れると同日2回公演。空欄=その枠は公演なし。「祝」は曜日設定より優先)</label>
       <div className="wd-grid">
         {cells.map(([k, name]) => (
           <div key={k} className="wd-cell">
             <div className="wd-name">{name}</div>
-            <input value={wdTimes[k]} onChange={(e) => setWdTimes({ ...wdTimes, [k]: e.target.value })} placeholder="—" />
+            <input
+              value={wdTimes[k].mat}
+              onChange={(e) => setWdTimes({ ...wdTimes, [k]: { ...wdTimes[k], mat: e.target.value } })}
+              placeholder="昼"
+              title="昼公演(マチネ)の開演時刻"
+            />
+            <input
+              style={{ marginTop: 4 }}
+              value={wdTimes[k].eve}
+              onChange={(e) => setWdTimes({ ...wdTimes, [k]: { ...wdTimes[k], eve: e.target.value } })}
+              placeholder="夜"
+              title="夜公演(ソワレ)の開演時刻"
+            />
           </div>
         ))}
       </div>
+      <p className="hint">上段=昼公演(マチネ)、下段=夜公演(ソワレ)。例: 土曜が13:00と18:00の2回なら両方に入力。</p>
       <button className="linklike" onClick={generate}>この条件で一括生成(下書き)</button>
 
       {draft.length > 0 && (

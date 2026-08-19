@@ -18,7 +18,10 @@ export default async function AdminCasts({ params }: { params: Promise<{ id: str
   if (!shows?.length) {
     return (
       <p className="notice">
-        公演回が未登録です。先に <a href={`/admin/performances/${id}/shows`}>公演回の登録</a> を行ってください。
+        公演回が未登録です。先に公演回の登録を行ってください。
+        <span style={{ display: 'block', marginTop: 10 }}>
+          <a className="btnlink" href={`/admin/performances/${id}/shows`}>公演回の登録へ</a>
+        </span>
       </p>
     );
   }

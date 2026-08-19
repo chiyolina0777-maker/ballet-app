@@ -64,11 +64,9 @@ export default function PerfListClient({ rows }: { rows: any[] }) {
               <td>{r.salesCount ? `${r.salesCount}件` : '—'}</td>
               <td style={{ fontSize: 12 }}>{r.castText}</td>
               <td className="acts">
-                <Link href={`/admin/performances/${r.id}/edit`}>編集</Link>
-                {' · '}
-                <Link href={`/admin/performances/${r.id}/shows`}>公演回</Link>
-                {' · '}
-                <Link href={`/admin/performances/${r.id}/casts`}>キャスト</Link>
+                <Link className="btnlink mini sub" href={`/admin/performances/${r.id}/edit`}>編集</Link>{' '}
+                <Link className="btnlink mini sub" href={`/admin/performances/${r.id}/shows`}>公演回</Link>{' '}
+                <Link className="btnlink mini sub" href={`/admin/performances/${r.id}/casts`}>キャスト</Link>
               </td>
             </tr>
           ))}
