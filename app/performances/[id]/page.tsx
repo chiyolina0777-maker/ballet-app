@@ -230,13 +230,12 @@ export default async function PerformanceDetail({ params }: { params: Promise<{ 
             ) : (
               <div className="cast">
                 {casts.map((c: any, i: number) => (
-                  <span key={i}>
-                    <span className="role">{c.role_name}:</span>{' '}
-                    {c.dancers?.id ? <a className="pill" href={`/dancers?focus=${c.dancers.id}`}>{c.dancers.name}</a> : c.dancers?.name ?? '—'}
+                  <div key={i} className="cast-line">
+                    <span className="role">{c.role_name}:</span>
+                    {c.dancers?.id ? <a className="pill" href={`/dancers?focus=${c.dancers.id}`}>{c.dancers.name}</a> : <span>{c.dancers?.name ?? '—'}</span>}
                     {c.status === 'changed' && <span className="badge warn">変更</span>}
                     {c.status === 'cancelled' && <span className="badge warn">降板</span>}
-                    {'　'}
-                  </span>
+                  </div>
                 ))}
               </div>
             )}
